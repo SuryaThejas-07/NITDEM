@@ -249,8 +249,8 @@ export default function CommandMap({ selectedNode, onNodeSelect, drones, predict
         </div>
       </div>
 
-      {/* Map overlay stats */}
-      <div className="absolute top-4 left-4 flex gap-2 flex-wrap max-w-[60%]">
+      {/* Map overlay stats — hidden on small to avoid overlap, scrollable strip on medium */}
+      <div className="hidden md:flex absolute top-4 left-4 gap-2 flex-wrap max-w-[55%] z-[5]">
         {TRAFFIC_NODES.map(node => {
           const pred = getPrediction(node, predictionWindow);
           const color = STATUS_COLORS[predictionWindow === 'current' ? node.status : congestionToStatus(pred.congestion)];
@@ -277,24 +277,51 @@ export default function CommandMap({ selectedNode, onNodeSelect, drones, predict
         })}
       </div>
 
-      {/* Prediction Mode Toggle — top right, non-intrusive */}
-      <div className="absolute top-4 right-4 flex flex-col items-end gap-2 z-[5]">
+      {/* Mobile node selector — horizontal scroll strip below header */}
+      <div className="md:hidden absolute top-2 left-14 right-2 z-[5] overflow-x-auto">
+        <div className="flex gap-1.5 pb-1">
+          {TRAFFIC_NODES.map(node => {
+            const pred = getPrediction(node, predictionWindow);
+            const color = STATUS_COLORS[predictionWindow === 'current' ? node.status : congestionToStatus(pred.congestion)];
+            return (
+              <button
+                key={node.id}
+                onClick={() => {
+                  onNodeSelect(node);
+                  leafletMap.current?.flyTo([node.lat, node.lng], 16, { duration: 1.2 });
+                }}
+                className={`shrink-0 px-2 py-1 rounded-md text-[9px] font-mono border ${
+                  selectedNode?.id === node.id
+                    ? 'bg-orange-500/20 border-orange-500/50 text-orange-300'
+                    : 'bg-[#0F1117]/90 border-white/[0.08] text-gray-300'
+                }`}
+              >
+                <span className="inline-block w-1.5 h-1.5 rounded-full mr-1 align-middle" style={{ backgroundColor: color }} />
+                {node.name}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Prediction Mode Toggle — bottom on mobile, top-right on desktop */}
+      <div className="absolute bottom-20 right-2 md:bottom-auto md:top-4 md:right-4 flex flex-col items-end gap-2 z-[5]">
         <div className="flex gap-1 bg-[#0F1117]/90 border border-white/[0.08] rounded-lg p-1 backdrop-blur-sm">
           <button
             onClick={() => onPredictionWindowChange('current')}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-[10px] font-mono uppercase transition-all ${
+            className={`flex items-center gap-1.5 px-2 md:px-2.5 py-1.5 rounded text-[10px] font-mono uppercase transition-all ${
               predictionWindow === 'current' ? 'bg-green-500/20 text-green-400' : 'text-gray-500 hover:text-white'
             }`}
           >
-            <Activity className="w-3 h-3" /> Current Analysis
+            <Activity className="w-3 h-3" /> <span className="hidden sm:inline">Current Analysis</span><span className="sm:hidden">Now</span>
           </button>
           <button
             onClick={() => onPredictionWindowChange('20min')}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-[10px] font-mono uppercase transition-all ${
+            className={`flex items-center gap-1.5 px-2 md:px-2.5 py-1.5 rounded text-[10px] font-mono uppercase transition-all ${
               predictionWindow !== 'current' ? 'bg-orange-500/20 text-orange-400' : 'text-gray-500 hover:text-white'
             }`}
           >
-            <Sparkles className="w-3 h-3" /> Future Prediction
+            <Sparkles className="w-3 h-3" /> <span className="hidden sm:inline">Future Prediction</span><span className="sm:hidden">Future</span>
           </button>
         </div>
 
@@ -308,7 +335,7 @@ export default function CommandMap({ selectedNode, onNodeSelect, drones, predict
               <button
                 key={w}
                 onClick={() => onPredictionWindowChange(w)}
-                className={`px-2.5 py-1 rounded text-[10px] font-mono uppercase transition-all ${
+                className={`px-2 md:px-2.5 py-1 rounded text-[10px] font-mono uppercase transition-all ${
                   predictionWindow === w ? 'bg-orange-500/20 text-orange-400' : 'text-gray-500 hover:text-white'
                 }`}
               >
@@ -318,6 +345,7 @@ export default function CommandMap({ selectedNode, onNodeSelect, drones, predict
           </motion.div>
         )}
       </div>
+
 
       {/* CSS for tooltips */}
       <style>{`

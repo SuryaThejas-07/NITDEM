@@ -22,28 +22,28 @@ export default function Header({ isDark, onToggleTheme, notifications, unreadCou
   }, []);
 
   return (
-    <header className="h-14 border-b border-white/[0.06] flex items-center justify-between px-4 shrink-0 relative z-20"
+    <header className="h-14 border-b border-white/[0.06] flex items-center justify-between pl-12 pr-2 md:px-4 shrink-0 relative z-20 gap-2"
       style={{ background: '#0F1117' }}>
       
       {/* Left: Status indicators */}
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-2 md:gap-4 min-w-0">
+        <div className="flex items-center gap-1.5 shrink-0">
           <motion.div animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 2, repeat: Infinity }}
             className="w-1.5 h-1.5 rounded-full bg-green-400" />
           <span className="text-[10px] font-mono text-green-400 tracking-wider">LIVE</span>
         </div>
-        <div className="flex items-center gap-2 text-gray-500">
+        <div className="hidden lg:flex items-center gap-2 text-gray-500">
           <Wifi className="w-3 h-3" />
           <span className="text-[10px] font-mono">KOZHIKODE NODE CLUSTER</span>
         </div>
-        <div className="flex items-center gap-2 text-gray-500">
+        <div className="hidden md:flex items-center gap-2 text-gray-500">
           <Activity className="w-3 h-3" />
           <span className="text-[10px] font-mono">AI: ONLINE</span>
         </div>
       </div>
 
-      {/* Center: Time */}
-      <div className="absolute left-1/2 -translate-x-1/2 text-center">
+      {/* Center: Time — hidden on small screens */}
+      <div className="hidden xl:block absolute left-1/2 -translate-x-1/2 text-center pointer-events-none">
         <div className="font-mono text-lg font-bold text-white tracking-widest">
           {format(time, 'HH:mm:ss')}
         </div>
@@ -53,9 +53,12 @@ export default function Header({ isDark, onToggleTheme, notifications, unreadCou
       </div>
 
       {/* Right: Controls */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
+        <div className="hidden sm:block xl:hidden font-mono text-xs font-bold text-white tracking-wider mr-1">
+          {format(time, 'HH:mm')}
+        </div>
         <button onClick={onToggleTheme}
-          className="w-8 h-8 rounded-lg border border-white/[0.08] flex items-center justify-center text-gray-400 hover:text-white hover:border-white/[0.2] transition-all">
+          className="w-8 h-8 rounded-lg border border-white/[0.08] flex items-center justify-center text-gray-400 hover:text-white hover:border-white/[0.2] transition-all shrink-0">
           {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
         </button>
 
@@ -76,7 +79,7 @@ export default function Header({ isDark, onToggleTheme, notifications, unreadCou
             <motion.div
               initial={{ opacity: 0, y: 8, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              className="absolute right-0 top-10 w-72 rounded-xl border border-white/[0.08] overflow-hidden z-50"
+              className="absolute right-0 top-10 w-[calc(100vw-1rem)] max-w-xs sm:w-72 rounded-xl border border-white/[0.08] overflow-hidden z-50"
               style={{ background: '#151820' }}>
               <div className="px-3 py-2 border-b border-white/[0.06] flex items-center justify-between">
                 <span className="text-xs font-mono text-gray-400">NOTIFICATIONS</span>
@@ -103,12 +106,15 @@ export default function Header({ isDark, onToggleTheme, notifications, unreadCou
           )}
         </div>
 
-        <div className="flex items-center gap-2 bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-1.5">
+        <div className="hidden sm:flex items-center gap-2 bg-white/[0.04] border border-white/[0.08] rounded-lg px-2 md:px-3 py-1.5">
           <User className="w-3.5 h-3.5 text-orange-400" />
           <div>
-            <div className="text-[10px] font-mono text-white font-semibold">ADMIN</div>
-            <div className="text-[9px] font-mono text-gray-500">Operator L3</div>
+            <div className="text-[10px] font-mono text-white font-semibold leading-tight">ADMIN</div>
+            <div className="text-[9px] font-mono text-gray-500 leading-tight">Operator L3</div>
           </div>
+        </div>
+        <div className="sm:hidden w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.08] flex items-center justify-center">
+          <User className="w-3.5 h-3.5 text-orange-400" />
         </div>
       </div>
     </header>

@@ -111,12 +111,12 @@ export default function IncidentCenter({ incidents, onLogIncident }: IncidentCen
         onClick={() => setShowModal(true)}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        className="fixed bottom-6 right-72 z-30 flex items-center gap-2 px-4 py-3 rounded-full font-mono text-sm font-bold shadow-lg"
+        className="fixed bottom-6 right-6 z-30 flex items-center gap-2 px-4 py-3 rounded-full font-mono text-sm font-bold shadow-lg"
         style={{ background: 'linear-gradient(135deg, #EF4444, #DC2626)', color: 'white' }}
         animate={{ boxShadow: ['0 0 0px rgba(239,68,68,0.4)', '0 0 20px rgba(239,68,68,0.4)', '0 0 0px rgba(239,68,68,0.4)'] }}
         transition={{ duration: 2, repeat: Infinity }}
       >
-        <Plus className="w-4 h-4" /> Log Incident
+        <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Log Incident</span>
       </motion.button>
 
       {/* Modal */}

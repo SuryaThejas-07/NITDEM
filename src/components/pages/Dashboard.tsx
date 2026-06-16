@@ -27,7 +27,7 @@ function useAnimatedValue(target: number, duration = 1500) {
 }
 
 function KPICard({ label, value, unit, icon: Icon, color, trend }: {
-  label: string; value: number; unit?: string; icon: React.ComponentType<{ className?: string }>;
+  label: string; value: number; unit?: string; icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   color: string; trend?: 'up' | 'down' | 'flat';
 }) {
   const animated = useAnimatedValue(value);
@@ -75,7 +75,7 @@ export default function Dashboard({ drones, incidents }: DashboardProps) {
 
   return (
     <div className="h-full overflow-y-auto p-4 space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between flex-wrap gap-2">
         <div>
           <h1 className="text-lg font-bold text-white">Operations Dashboard</h1>
           <p className="text-[11px] text-gray-500 font-mono">Kozhikode Traffic Intelligence · Live Overview</p>
@@ -88,7 +88,7 @@ export default function Dashboard({ drones, incidents }: DashboardProps) {
       </div>
 
       {/* KPI Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         <KPICard label="Active Drones" value={drones.filter(d => d.status !== 'offline').length} icon={Plane} color="#3B82F6" trend="flat" />
         <KPICard label="Active Incidents" value={activeIncidents + incidents.length} icon={AlertTriangle} color="#EF4444" trend="up" />
         <KPICard label="Flow Score" value={flowScore} unit="%" icon={Activity} color="#22C55E" trend="down" />

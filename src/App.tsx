@@ -114,7 +114,8 @@ export default function App() {
           {/* Mobile menu button */}
           <button
             onClick={() => setMobileDrawerOpen(true)}
-            className="md:hidden absolute top-3 left-3 z-30 w-8 h-8 rounded-lg bg-[#0F1117] border border-white/[0.08] flex items-center justify-center text-gray-400"
+            aria-label="Open menu"
+            className="md:hidden absolute top-3 left-2 z-30 w-9 h-9 rounded-lg bg-[#0F1117] border border-white/[0.08] flex items-center justify-center text-gray-300 hover:text-white"
           >
             <Menu className="w-4 h-4" />
           </button>

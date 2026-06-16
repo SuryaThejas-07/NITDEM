@@ -20,12 +20,14 @@ export default function MobileDrawer({ isOpen, onClose, currentPage, onNavigate,
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm md:hidden"
+            style={{ zIndex: 9998 }}
           />
           <motion.div
             initial={{ x: -260 }} animate={{ x: 0 }} exit={{ x: -260 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className="fixed left-0 top-0 bottom-0 z-50 md:hidden"
+            className="fixed left-0 top-0 bottom-0 md:hidden"
+            style={{ zIndex: 9999 }}
           >
             <div className="relative h-full">
               <button onClick={onClose}

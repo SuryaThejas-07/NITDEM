@@ -26,12 +26,12 @@ const ACCURACY = [{ name: 'Congestion', value: 96.2, fill: '#F97316' },
 export default function AIAnalytics() {
   return (
     <div className="h-full overflow-y-auto p-4 space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-lg font-bold text-white">AI Analytics</h1>
           <p className="text-[11px] text-gray-500 font-mono">Spatio-Temporal Graph Neural Network · Real-Time Inference</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
           {[
             { label: 'Model', value: 'ST-GNN v3.2', color: 'text-purple-400' },
             { label: 'Inference', value: '0.18s', color: 'text-green-400' },
@@ -46,7 +46,7 @@ export default function AIAnalytics() {
       </div>
 
       {/* Status strip */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: 'Congestion Score', value: '87', unit: '/100', icon: Activity, color: '#F97316' },
           { label: 'Prediction Accuracy', value: '96.2', unit: '%', icon: Brain, color: '#A855F7' },
@@ -70,8 +70,8 @@ export default function AIAnalytics() {
         <div className="bg-[#0F1117] border border-white/[0.06] rounded-xl p-4">
           <div className="text-sm font-semibold text-white mb-1">Vehicle Classification</div>
           <div className="text-[10px] text-gray-500 font-mono mb-4">AI-detected vehicle types</div>
-          <div className="flex items-center">
-            <ResponsiveContainer width="60%" height={180}>
+          <div className="flex items-center flex-wrap gap-3">
+            <ResponsiveContainer width="100%" minWidth={0} height={180} className="!w-full sm:!w-3/5">
               <PieChart>
                 <Pie data={VEHICLE_DATA} cx="50%" cy="50%" innerRadius={50} outerRadius={80}
                   paddingAngle={3} dataKey="value">
@@ -82,7 +82,7 @@ export default function AIAnalytics() {
                 <Tooltip contentStyle={{ background: '#151820', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, fontSize: 11 }} />
               </PieChart>
             </ResponsiveContainer>
-            <div className="space-y-3 ml-2">
+            <div className="space-y-3 ml-0 sm:ml-2">
               {VEHICLE_DATA.map(({ name, value, color }) => (
                 <div key={name} className="flex items-center gap-2">
                   <div className="w-2.5 h-2.5 rounded" style={{ backgroundColor: color }} />
