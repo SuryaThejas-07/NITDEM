@@ -1,11 +1,24 @@
 import type { TrafficNode, Drone, Token, WeatherData, RoadHealth, DroneAnomaly, NodePrediction, PredictionWindow } from '../types';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// TRAFFIC NODES — coordinates synced from KUTIS (Kozhikode-Traffic-Management)
+// Mapping:
+//   stadium      ← stadium_jn        (11.255700, 75.785660)
+//   bus_stand    ← bus_stand_jn      (11.260410, 75.785680)
+//   arayidathupalam ← arayidathupalam_jn (11.259720, 75.792480)
+//   mananchira   ← mananchira_jn     (11.254237, 75.781672)
+//   poonthanam   ← poonthanam_jn     (11.250620, 75.786780)
+//   palayam      ← palayam_jn        (11.249420, 75.784980)
+//   mavoor       ← mavoor_road_jn    (11.258694, 75.780394)
+//   midtown      ← midtown_jn        (11.256140, 75.792850)
+//   east_bypass  ← east_bypass_jn    (11.252560, 75.793220)
+// ─────────────────────────────────────────────────────────────────────────────
 export const TRAFFIC_NODES: TrafficNode[] = [
   {
     id: 'stadium',
     name: 'Stadium Junction',
-    lat: 11.2524,
-    lng: 75.7793,
+    lat: 11.255700,
+    lng: 75.785660,
     density: 87,
     vehicleCount: 1243,
     avgSpeed: 24,
@@ -13,46 +26,90 @@ export const TRAFFIC_NODES: TrafficNode[] = [
     status: 'heavy',
   },
   {
-    id: 'mavoor',
-    name: 'Mavoor Road',
-    lat: 11.2631,
-    lng: 75.7965,
-    density: 62,
-    vehicleCount: 876,
-    avgSpeed: 38,
+    id: 'bus_stand',
+    name: 'Bus Stand Junction',
+    lat: 11.260410,
+    lng: 75.785680,
+    density: 72,
+    vehicleCount: 1050,
+    avgSpeed: 23,
+    incidentCount: 1,
+    status: 'heavy',
+  },
+  {
+    id: 'arayidathupalam',
+    name: 'Arayidathupalam Junction',
+    lat: 11.259720,
+    lng: 75.792480,
+    density: 81,
+    vehicleCount: 1150,
+    avgSpeed: 18,
+    incidentCount: 1,
+    status: 'heavy',
+  },
+  {
+    id: 'mananchira',
+    name: 'Mananchira Junction',
+    lat: 11.254237,
+    lng: 75.781672,
+    density: 54,
+    vehicleCount: 720,
+    avgSpeed: 27,
+    incidentCount: 0,
+    status: 'moderate',
+  },
+  {
+    id: 'poonthanam',
+    name: 'Poonthanam Junction',
+    lat: 11.250620,
+    lng: 75.786780,
+    density: 60,
+    vehicleCount: 830,
+    avgSpeed: 25,
     incidentCount: 0,
     status: 'moderate',
   },
   {
     id: 'palayam',
-    name: 'Palayam',
-    lat: 11.2571,
-    lng: 75.7808,
-    density: 45,
-    vehicleCount: 543,
-    avgSpeed: 47,
+    name: 'Palayam Junction',
+    lat: 11.249420,
+    lng: 75.784980,
+    density: 92,
+    vehicleCount: 1380,
+    avgSpeed: 16,
     incidentCount: 1,
-    status: 'moderate',
-  },
-  {
-    id: 'ksrtc',
-    name: 'KSRTC Bus Stand',
-    lat: 11.2495,
-    lng: 75.7748,
-    density: 94,
-    vehicleCount: 1891,
-    avgSpeed: 12,
-    incidentCount: 3,
     status: 'critical',
   },
   {
-    id: 'bypass',
-    name: 'Mini Bypass',
-    lat: 11.2688,
-    lng: 75.7852,
+    id: 'mavoor',
+    name: 'Mavoor Road Junction',
+    lat: 11.258694,
+    lng: 75.780394,
+    density: 48,
+    vehicleCount: 680,
+    avgSpeed: 31,
+    incidentCount: 0,
+    status: 'moderate',
+  },
+  {
+    id: 'midtown',
+    name: 'Midtown Junction',
+    lat: 11.256140,
+    lng: 75.792850,
+    density: 31,
+    vehicleCount: 390,
+    avgSpeed: 34,
+    incidentCount: 0,
+    status: 'free',
+  },
+  {
+    id: 'east_bypass',
+    name: 'East Bypass Junction',
+    lat: 11.252560,
+    lng: 75.793220,
     density: 28,
-    vehicleCount: 312,
-    avgSpeed: 65,
+    vehicleCount: 330,
+    avgSpeed: 36,
     incidentCount: 0,
     status: 'free',
   },
@@ -63,23 +120,23 @@ export const INITIAL_DRONES: Drone[] = [
     id: 'alpha',
     name: 'Drone Alpha',
     location: 'Stadium Junction',
-    lat: 11.2524,
-    lng: 75.7793,
+    lat: 11.255700,
+    lng: 75.785660,
     battery: 84,
     altitude: 120,
     status: 'streaming',
-    targetNodeId: 'mavoor',
+    targetNodeId: 'bus_stand',
   },
   {
     id: 'bravo',
     name: 'Drone Bravo',
-    location: 'Palayam',
-    lat: 11.2571,
-    lng: 75.7808,
+    location: 'Palayam Junction',
+    lat: 11.249420,
+    lng: 75.784980,
     battery: 91,
     altitude: 135,
     status: 'streaming',
-    targetNodeId: 'bypass',
+    targetNodeId: 'east_bypass',
   },
 ];
 
@@ -98,17 +155,17 @@ export const SAMPLE_TOKENS: Token[] = [
     id: 'TK-8126',
     type: 'Congestion',
     priority: 'high',
-    location: 'KSRTC Bus Stand',
+    location: 'Bus Stand Junction',
     status: 'active',
     timestamp: new Date(Date.now() - 1000 * 60 * 32).toISOString(),
-    description: 'Severe congestion due to bus bunching. Over 1800 vehicles detected.',
+    description: 'Severe congestion due to bus bunching. Over 1050 vehicles detected.',
     generatedBy: 'Traffic Sensor Array',
   },
   {
     id: 'TK-8125',
     type: 'Event Warning',
     priority: 'medium',
-    location: 'Palayam',
+    location: 'Palayam Junction',
     status: 'pending',
     timestamp: new Date(Date.now() - 1000 * 60 * 58).toISOString(),
     description: 'Festival procession expected to cause route disruption from 18:00.',
@@ -118,7 +175,7 @@ export const SAMPLE_TOKENS: Token[] = [
     id: 'TK-8124',
     type: 'Drone Observation',
     priority: 'low',
-    location: 'Mavoor Road',
+    location: 'Mavoor Road Junction',
     status: 'resolved',
     timestamp: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
     description: 'Road surface damage observed near km marker 4. Maintenance notified.',
@@ -151,23 +208,43 @@ export const AI_RECOMMENDATIONS: Record<string, string[]> = {
     'Divert northbound traffic through Mini Bypass',
     'Alert 4 officers to manual point duty',
   ],
-  mavoor: [
+  bus_stand: [
+    'CRITICAL: Activate overflow bay management protocol',
+    'Request additional traffic personnel — minimum 6 officers',
+    'Implement bus departure staggering every 4 minutes',
+    'Deploy Drone Alpha for passenger flow monitoring',
+  ],
+  arayidathupalam: [
+    'Monitor Mini Bypass approach — congestion risk is high',
+    'Signal timing extension of 10 seconds recommended on eastbound arm',
+    'Divert via Midtown connector if density exceeds 85',
+  ],
+  mananchira: [
     'Current flow stable — no action required',
-    'Schedule Drone Bravo patrol at 15:00',
-    'Monitor for peak hour build-up after 17:30',
+    'Monitor inner-city distributor during peak hours',
+    'Schedule Drone Bravo patrol at 16:00',
+  ],
+  poonthanam: [
+    'Coordinate east-west flow with Palayam signal plan',
+    'Monitor for queue build-up from Palayam bottleneck',
+    'Enable emergency corridor on eastern bypass if needed',
   ],
   palayam: [
     'Festival route adjustment recommended from 18:00',
     'Coordinate with event organizers for crowd management',
     'Enable emergency corridor on inner ring road',
   ],
-  ksrtc: [
-    'CRITICAL: Activate overflow bay management protocol',
-    'Request additional traffic personnel — minimum 6 officers',
-    'Implement bus departure staggering every 4 minutes',
-    'Deploy Drone Alpha for passenger flow monitoring',
+  mavoor: [
+    'Current flow stable — no action required',
+    'Schedule Drone Bravo patrol at 15:00',
+    'Monitor for peak hour build-up after 17:30',
   ],
-  bypass: [
+  midtown: [
+    'Excellent flow — actively divert heavy vehicles here',
+    'Signal optimization suggested: extend green by 10 seconds',
+    'Inform navigation systems to promote this route',
+  ],
+  east_bypass: [
     'Excellent flow — actively divert heavy vehicles here',
     'Signal optimization suggested: extend green by 10 seconds',
     'Inform navigation systems to promote this route',
@@ -181,11 +258,12 @@ export const STATUS_COLORS: Record<string, string> = {
   critical: '#EF4444',
 };
 
+// Expanded operational zone to cover all 9 KUTIS nodes
 export const OPERATIONAL_ZONE: [number, number][] = [
-  [11.2750, 75.7650],
-  [11.2750, 75.8050],
-  [11.2400, 75.8050],
-  [11.2400, 75.7650],
+  [11.2650, 75.7780],
+  [11.2650, 75.7960],
+  [11.2470, 75.7960],
+  [11.2470, 75.7780],
 ];
 
 // ============ NEW FEATURE DATA ============
@@ -210,7 +288,7 @@ export const ROAD_HEALTH: RoadHealth[] = [
   },
   {
     id: 'mini-bypass',
-    name: 'Mini Bypass',
+    name: 'East Bypass',
     score: 62,
     status: 'poor',
     lastInspected: new Date(Date.now() - 1000 * 60 * 60 * 24 * 12).toISOString(),
@@ -225,8 +303,8 @@ export const ROAD_HEALTH: RoadHealth[] = [
     issues: ['Signal timing board flickering'],
   },
   {
-    id: 'ksrtc-approach',
-    name: 'KSRTC Approach Road',
+    id: 'bus-stand-approach',
+    name: 'Bus Stand Approach Road',
     score: 45,
     status: 'critical',
     lastInspected: new Date(Date.now() - 1000 * 60 * 60 * 24 * 20).toISOString(),
@@ -261,11 +339,15 @@ export interface JunctionInfo {
 }
 
 export const JUNCTIONS: JunctionInfo[] = [
-  { id: 'stadium', name: 'Stadium Junction', lat: 11.2524, lng: 75.7793, roads: ['NH-66', 'Stadium Road', 'Indira Gandhi Road'] },
-  { id: 'mavoor', name: 'Mavoor Road Junction', lat: 11.2631, lng: 75.7965, roads: ['Mavoor Road', 'Cherootty Road'] },
-  { id: 'palayam', name: 'Palayam Junction', lat: 11.2571, lng: 75.7808, roads: ['Palayam Road', 'Bank Road'] },
-  { id: 'ksrtc', name: 'KSRTC Bus Stand', lat: 11.2495, lng: 75.7748, roads: ['KSRTC Approach Road', 'Mavoor Road', 'SM Street'] },
-  { id: 'bypass', name: 'Mini Bypass Junction', lat: 11.2688, lng: 75.7852, roads: ['Mini Bypass', 'NH-66', 'Eranhipalam Road'] },
+  { id: 'stadium',        name: 'Stadium Junction',         lat: 11.255700, lng: 75.785660, roads: ['NH-66', 'Stadium Road', 'Indira Gandhi Road'] },
+  { id: 'bus_stand',      name: 'Bus Stand Junction',       lat: 11.260410, lng: 75.785680, roads: ['Bus Stand Road', 'Mavoor Road', 'Mini Bypass'] },
+  { id: 'arayidathupalam',name: 'Arayidathupalam Junction', lat: 11.259720, lng: 75.792480, roads: ['Mini Bypass', 'Cherootty Road', 'Arayidathupalam Road'] },
+  { id: 'mananchira',     name: 'Mananchira Junction',      lat: 11.254237, lng: 75.781672, roads: ['Mananchira Road', 'Bank Road', 'Indira Gandhi Road'] },
+  { id: 'poonthanam',     name: 'Poonthanam Junction',      lat: 11.250620, lng: 75.786780, roads: ['M.M Ali Road', 'Poonthanam Road'] },
+  { id: 'palayam',        name: 'Palayam Junction',         lat: 11.249420, lng: 75.784980, roads: ['Palayam Road', 'Bank Road', 'M.M Ali Road'] },
+  { id: 'mavoor',         name: 'Mavoor Road Junction',     lat: 11.258694, lng: 75.780394, roads: ['Mavoor Road', 'Cherootty Road'] },
+  { id: 'midtown',        name: 'Midtown Junction',         lat: 11.256140, lng: 75.792850, roads: ['Midtown Connector', 'Eastern Inner Road'] },
+  { id: 'east_bypass',    name: 'East Bypass Junction',     lat: 11.252560, lng: 75.793220, roads: ['Eastern Bypass', 'Poonthanam Link'] },
 ];
 
 function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -297,8 +379,8 @@ export const DRONE_ANOMALIES: DroneAnomaly[] = [
     droneId: 'alpha',
     droneName: 'Drone Alpha',
     location: 'Stadium Junction',
-    lat: 11.2524,
-    lng: 75.7793,
+    lat: 11.255700,
+    lng: 75.785660,
     timestamp: new Date(Date.now() - 1000 * 60 * 18).toISOString(),
     confidence: 94,
     imageSeed: 'accident-stadium-1',
@@ -309,9 +391,9 @@ export const DRONE_ANOMALIES: DroneAnomaly[] = [
     type: 'Illegal Parking',
     droneId: 'bravo',
     droneName: 'Drone Bravo',
-    location: 'Palayam',
-    lat: 11.2571,
-    lng: 75.7808,
+    location: 'Palayam Junction',
+    lat: 11.249420,
+    lng: 75.784980,
     timestamp: new Date(Date.now() - 1000 * 60 * 42).toISOString(),
     confidence: 88,
     imageSeed: 'parking-palayam-1',
@@ -322,9 +404,9 @@ export const DRONE_ANOMALIES: DroneAnomaly[] = [
     type: 'Crowd Gathering',
     droneId: 'alpha',
     droneName: 'Drone Alpha',
-    location: 'Mavoor Road',
-    lat: 11.2631,
-    lng: 75.7965,
+    location: 'Mavoor Road Junction',
+    lat: 11.258694,
+    lng: 75.780394,
     timestamp: new Date(Date.now() - 1000 * 60 * 70).toISOString(),
     confidence: 91,
     imageSeed: 'crowd-mavoor-1',
@@ -341,11 +423,10 @@ export const ANOMALY_TYPES: { type: DroneAnomaly['type']; color: string }[] = [
 ];
 
 // Traffic Prediction generation
-// Deterministic-ish pseudo-random offsets based on node id and window
 function seededFactor(seed: string): number {
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) % 1000;
-  return h / 1000; // 0-1
+  return h / 1000;
 }
 
 export function getPrediction(node: TrafficNode, window: PredictionWindow): NodePrediction {
@@ -364,7 +445,6 @@ export function getPrediction(node: TrafficNode, window: PredictionWindow): Node
 
   const horizonMultiplier = window === '20min' ? 1 : window === '1hr' ? 2 : 3;
   const factor = seededFactor(node.id + window);
-  // Simulate rush-hour build-up: density tends to increase, speed decreases
   const densityDelta = (factor - 0.3) * 15 * horizonMultiplier;
   const predictedDensity = Math.max(5, Math.min(100, Math.round(node.density + densityDelta)));
   const vehicleDelta = Math.round((factor - 0.25) * 200 * horizonMultiplier);

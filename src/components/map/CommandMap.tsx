@@ -14,13 +14,20 @@ interface CommandMapProps {
   onPredictionWindowChange: (w: PredictionWindow) => void;
 }
 
+// Road connections synced from KUTIS trafficNetwork.ts road links
 const CONNECTIONS: [string, string][] = [
-  ['stadium', 'mavoor'],
-  ['stadium', 'palayam'],
-  ['stadium', 'ksrtc'],
-  ['palayam', 'ksrtc'],
-  ['mavoor', 'bypass'],
-  ['palayam', 'bypass'],
+  ['mavoor',          'bus_stand'],        // Mavoor Connector (arterial)
+  ['bus_stand',       'arayidathupalam'],  // Mini Bypass Link (bypass)
+  ['bus_stand',       'stadium'],          // Bus Stand Spine (collector)
+  ['arayidathupalam', 'midtown'],          // Arayidathupalam to Midtown Link
+  ['stadium',         'mananchira'],       // Stadium Road (collector)
+  ['stadium',         'poonthanam'],       // Stadium Link Road (collector)
+  ['stadium',         'midtown'],          // Stadium to Midtown Link
+  ['midtown',         'east_bypass'],      // Midtown to East Bypass Link
+  ['east_bypass',     'poonthanam'],       // Eastern Bypass Link
+  ['poonthanam',      'palayam'],          // M.M Ali Road (arterial)
+  ['palayam',         'mananchira'],       // Palayam to Mananchira Link
+  ['mavoor',          'mananchira'],       // Mavoor to Mananchira Connector
 ];
 
 export default function CommandMap({ selectedNode, onNodeSelect, drones, predictionWindow, onPredictionWindowChange }: CommandMapProps) {
@@ -36,7 +43,7 @@ export default function CommandMap({ selectedNode, onNodeSelect, drones, predict
     if (!mapRef.current || leafletMap.current) return;
 
     const map = L.map(mapRef.current, {
-      center: [11.2588, 75.7873],
+      center: [11.2545, 75.7872],
       zoom: 14,
       zoomControl: false,
       attributionControl: false,
