@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Bell, Sun, Moon, User, Wifi, Activity } from 'lucide-react';
 import { format } from 'date-fns';
-import type { Notification } from '../../types';
+import type { Notification, UserRole } from '../../types';
 
 interface HeaderProps {
   isDark: boolean;
@@ -10,9 +10,11 @@ interface HeaderProps {
   notifications: Notification[];
   onNotificationClick: (id: string) => void;
   unreadCount: number;
+  currentRole: UserRole;
+  onRoleChange: (role: UserRole) => void;
 }
 
-export default function Header({ isDark, onToggleTheme, notifications, unreadCount }: HeaderProps) {
+export default function Header({ isDark, onToggleTheme, notifications, unreadCount, currentRole, onRoleChange }: HeaderProps) {
   const [time, setTime] = useState(new Date());
   const [showNotifs, setShowNotifs] = useState(false);
 
@@ -22,8 +24,7 @@ export default function Header({ isDark, onToggleTheme, notifications, unreadCou
   }, []);
 
   return (
-    <header className="h-14 border-b border-white/[0.06] flex items-center justify-between pl-12 pr-2 md:px-4 shrink-0 relative z-20 gap-2"
-      style={{ background: '#0F1117' }}>
+    <header className="h-14 border-b border-white/[0.06] flex items-center justify-between pl-12 pr-2 md:px-4 shrink-0 relative z-20 gap-2 bg-[#0F1117]">
       
       {/* Left: Status indicators */}
       <div className="flex items-center gap-2 md:gap-4 min-w-0">
@@ -79,8 +80,7 @@ export default function Header({ isDark, onToggleTheme, notifications, unreadCou
             <motion.div
               initial={{ opacity: 0, y: 8, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              className="absolute right-0 top-10 w-[calc(100vw-1rem)] max-w-xs sm:w-72 rounded-xl border border-white/[0.08] overflow-hidden z-50"
-              style={{ background: '#151820' }}>
+              className="absolute right-0 top-10 w-[calc(100vw-1rem)] max-w-xs sm:w-72 rounded-xl border border-white/[0.08] overflow-hidden z-50 bg-[#151820]">
               <div className="px-3 py-2 border-b border-white/[0.06] flex items-center justify-between">
                 <span className="text-xs font-mono text-gray-400">NOTIFICATIONS</span>
                 <span className="text-[10px] text-orange-400">{notifications.length} active</span>
@@ -106,15 +106,21 @@ export default function Header({ isDark, onToggleTheme, notifications, unreadCou
           )}
         </div>
 
-        <div className="hidden sm:flex items-center gap-2 bg-white/[0.04] border border-white/[0.08] rounded-lg px-2 md:px-3 py-1.5">
-          <User className="w-3.5 h-3.5 text-orange-400" />
-          <div>
-            <div className="text-[10px] font-mono text-white font-semibold leading-tight">ADMIN</div>
-            <div className="text-[9px] font-mono text-gray-500 leading-tight">Operator L3</div>
+        <div className="flex items-center gap-2 bg-white/[0.04] border border-white/[0.08] rounded-lg px-2 md:px-3 py-1 shrink-0">
+          <User className="w-3.5 h-3.5 text-orange-400 shrink-0" />
+          <div className="flex flex-col">
+            <span className="text-[8px] font-mono text-gray-500 uppercase leading-none mb-0.5">ACTIVE ROLE</span>
+            <select
+              value={currentRole}
+              onChange={e => onRoleChange(e.target.value as UserRole)}
+              className="bg-transparent text-[10px] font-mono font-bold text-white leading-tight focus:outline-none cursor-pointer border-none outline-none appearance-none pr-4"
+              style={{ backgroundImage: 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'8\' height=\'8\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23F97316\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><polyline points=\'6 9 12 15 18 9\'></polyline></svg>")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right center' }}
+            >
+              <option value="supervisor" className="bg-[#151820] text-white">Supervisor (L3)</option>
+              <option value="operator" className="bg-[#151820] text-white">Operator (L1)</option>
+              <option value="technician" className="bg-[#151820] text-white">Technician (L2)</option>
+            </select>
           </div>
-        </div>
-        <div className="sm:hidden w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.08] flex items-center justify-center">
-          <User className="w-3.5 h-3.5 text-orange-400" />
         </div>
       </div>
     </header>

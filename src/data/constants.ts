@@ -1,4 +1,4 @@
-import type { TrafficNode, Drone, Token, WeatherData, RoadHealth, DroneAnomaly, NodePrediction, PredictionWindow } from '../types';
+import type { TrafficNode, Drone, Token, WeatherData, RoadHealth, DroneAnomaly, NodePrediction, PredictionWindow, RoadLinkMetadata } from '../types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TRAFFIC NODES — coordinates synced from KUTIS (Kozhikode-Traffic-Management)
@@ -17,8 +17,8 @@ export const TRAFFIC_NODES: TrafficNode[] = [
   {
     id: 'stadium',
     name: 'Stadium Junction',
-    lat: 11.255700,
-    lng: 75.785660,
+    lat: 11.2553,
+    lng: 75.7861,
     density: 87,
     vehicleCount: 1243,
     avgSpeed: 24,
@@ -28,8 +28,8 @@ export const TRAFFIC_NODES: TrafficNode[] = [
   {
     id: 'bus_stand',
     name: 'Bus Stand Junction',
-    lat: 11.260410,
-    lng: 75.785680,
+    lat: 11.2592,
+    lng: 75.7853,
     density: 72,
     vehicleCount: 1050,
     avgSpeed: 23,
@@ -39,8 +39,8 @@ export const TRAFFIC_NODES: TrafficNode[] = [
   {
     id: 'arayidathupalam',
     name: 'Arayidathupalam Junction',
-    lat: 11.259720,
-    lng: 75.792480,
+    lat: 11.2586,
+    lng: 75.7919,
     density: 81,
     vehicleCount: 1150,
     avgSpeed: 18,
@@ -51,7 +51,7 @@ export const TRAFFIC_NODES: TrafficNode[] = [
     id: 'mananchira',
     name: 'Mananchira Junction',
     lat: 11.254237,
-    lng: 75.781672,
+    lng: 75.7816717,
     density: 54,
     vehicleCount: 720,
     avgSpeed: 27,
@@ -61,8 +61,8 @@ export const TRAFFIC_NODES: TrafficNode[] = [
   {
     id: 'poonthanam',
     name: 'Poonthanam Junction',
-    lat: 11.250620,
-    lng: 75.786780,
+    lat: 11.2514,
+    lng: 75.7876,
     density: 60,
     vehicleCount: 830,
     avgSpeed: 25,
@@ -72,8 +72,8 @@ export const TRAFFIC_NODES: TrafficNode[] = [
   {
     id: 'palayam',
     name: 'Palayam Junction',
-    lat: 11.249420,
-    lng: 75.784980,
+    lat: 11.2489,
+    lng: 75.7839,
     density: 92,
     vehicleCount: 1380,
     avgSpeed: 16,
@@ -94,8 +94,8 @@ export const TRAFFIC_NODES: TrafficNode[] = [
   {
     id: 'midtown',
     name: 'Midtown Junction',
-    lat: 11.256140,
-    lng: 75.792850,
+    lat: 11.2552,
+    lng: 75.7919,
     density: 31,
     vehicleCount: 390,
     avgSpeed: 34,
@@ -105,8 +105,8 @@ export const TRAFFIC_NODES: TrafficNode[] = [
   {
     id: 'east_bypass',
     name: 'East Bypass Junction',
-    lat: 11.252560,
-    lng: 75.793220,
+    lat: 11.2526,
+    lng: 75.7932,
     density: 28,
     vehicleCount: 330,
     avgSpeed: 36,
@@ -120,8 +120,8 @@ export const INITIAL_DRONES: Drone[] = [
     id: 'alpha',
     name: 'Drone Alpha',
     location: 'Stadium Junction',
-    lat: 11.255700,
-    lng: 75.785660,
+    lat: 11.2553,
+    lng: 75.7861,
     battery: 84,
     altitude: 120,
     status: 'streaming',
@@ -131,8 +131,8 @@ export const INITIAL_DRONES: Drone[] = [
     id: 'bravo',
     name: 'Drone Bravo',
     location: 'Palayam Junction',
-    lat: 11.249420,
-    lng: 75.784980,
+    lat: 11.2489,
+    lng: 75.7839,
     battery: 91,
     altitude: 135,
     status: 'streaming',
@@ -339,15 +339,15 @@ export interface JunctionInfo {
 }
 
 export const JUNCTIONS: JunctionInfo[] = [
-  { id: 'stadium',        name: 'Stadium Junction',         lat: 11.255700, lng: 75.785660, roads: ['NH-66', 'Stadium Road', 'Indira Gandhi Road'] },
-  { id: 'bus_stand',      name: 'Bus Stand Junction',       lat: 11.260410, lng: 75.785680, roads: ['Bus Stand Road', 'Mavoor Road', 'Mini Bypass'] },
-  { id: 'arayidathupalam',name: 'Arayidathupalam Junction', lat: 11.259720, lng: 75.792480, roads: ['Mini Bypass', 'Cherootty Road', 'Arayidathupalam Road'] },
-  { id: 'mananchira',     name: 'Mananchira Junction',      lat: 11.254237, lng: 75.781672, roads: ['Mananchira Road', 'Bank Road', 'Indira Gandhi Road'] },
-  { id: 'poonthanam',     name: 'Poonthanam Junction',      lat: 11.250620, lng: 75.786780, roads: ['M.M Ali Road', 'Poonthanam Road'] },
-  { id: 'palayam',        name: 'Palayam Junction',         lat: 11.249420, lng: 75.784980, roads: ['Palayam Road', 'Bank Road', 'M.M Ali Road'] },
+  { id: 'stadium',        name: 'Stadium Junction',         lat: 11.2553, lng: 75.7861, roads: ['NH-66', 'Stadium Road', 'Indira Gandhi Road'] },
+  { id: 'bus_stand',      name: 'Bus Stand Junction',       lat: 11.2592, lng: 75.7853, roads: ['Bus Stand Road', 'Mavoor Road', 'Mini Bypass'] },
+  { id: 'arayidathupalam',name: 'Arayidathupalam Junction', lat: 11.2586, lng: 75.7919, roads: ['Mini Bypass', 'Cherootty Road', 'Arayidathupalam Road'] },
+  { id: 'mananchira',     name: 'Mananchira Junction',      lat: 11.254237, lng: 75.7816717, roads: ['Mananchira Road', 'Bank Road', 'Indira Gandhi Road'] },
+  { id: 'poonthanam',     name: 'Poonthanam Junction',      lat: 11.2514, lng: 75.7876, roads: ['M.M Ali Road', 'Poonthanam Road'] },
+  { id: 'palayam',        name: 'Palayam Junction',         lat: 11.2489, lng: 75.7839, roads: ['Palayam Road', 'Bank Road', 'M.M Ali Road'] },
   { id: 'mavoor',         name: 'Mavoor Road Junction',     lat: 11.258694, lng: 75.780394, roads: ['Mavoor Road', 'Cherootty Road'] },
-  { id: 'midtown',        name: 'Midtown Junction',         lat: 11.256140, lng: 75.792850, roads: ['Midtown Connector', 'Eastern Inner Road'] },
-  { id: 'east_bypass',    name: 'East Bypass Junction',     lat: 11.252560, lng: 75.793220, roads: ['Eastern Bypass', 'Poonthanam Link'] },
+  { id: 'midtown',        name: 'Midtown Junction',         lat: 11.2552, lng: 75.7919, roads: ['Midtown Connector', 'Eastern Inner Road'] },
+  { id: 'east_bypass',    name: 'East Bypass Junction',     lat: 11.2526, lng: 75.7932, roads: ['Eastern Bypass', 'Poonthanam Link'] },
 ];
 
 function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -379,8 +379,8 @@ export const DRONE_ANOMALIES: DroneAnomaly[] = [
     droneId: 'alpha',
     droneName: 'Drone Alpha',
     location: 'Stadium Junction',
-    lat: 11.255700,
-    lng: 75.785660,
+    lat: 11.2553,
+    lng: 75.7861,
     timestamp: new Date(Date.now() - 1000 * 60 * 18).toISOString(),
     confidence: 94,
     imageSeed: 'accident-stadium-1',
@@ -392,8 +392,8 @@ export const DRONE_ANOMALIES: DroneAnomaly[] = [
     droneId: 'bravo',
     droneName: 'Drone Bravo',
     location: 'Palayam Junction',
-    lat: 11.249420,
-    lng: 75.784980,
+    lat: 11.2489,
+    lng: 75.7839,
     timestamp: new Date(Date.now() - 1000 * 60 * 42).toISOString(),
     confidence: 88,
     imageSeed: 'parking-palayam-1',
@@ -549,3 +549,90 @@ export function runSimulation(node: TrafficNode, action: typeof SIMULATION_ACTIO
     requiredDrones: drones,
   };
 }
+
+export const ROAD_LINKS_METADATA: Record<string, RoadLinkMetadata> = {
+  'mavoor-bus_stand': {
+    name: 'Mavoor Road (Outer)',
+    type: 'Arterial Corridor',
+    lengthKm: 0.9,
+    healthId: 'mavoor-road',
+    baseSpeed: 50,
+  },
+  'bus_stand-arayidathupalam': {
+    name: 'Mavoor Road (Middle)',
+    type: 'Arterial Corridor',
+    lengthKm: 0.7,
+    healthId: 'bus-stand-approach',
+    baseSpeed: 50,
+  },
+  'bus_stand-stadium': {
+    name: 'Rajaji Road',
+    type: 'Primary Collector',
+    lengthKm: 0.5,
+    healthId: 'bus-stand-approach',
+    baseSpeed: 40,
+  },
+  'arayidathupalam-midtown': {
+    name: 'Mini Bypass Road (North)',
+    type: 'Bypass Expressway',
+    lengthKm: 0.8,
+    healthId: 'mini-bypass',
+    baseSpeed: 60,
+  },
+  'stadium-mananchira': {
+    name: 'Pavamani Road',
+    type: 'Primary Collector',
+    lengthKm: 0.6,
+    healthId: 'stadium-corridor',
+    baseSpeed: 45,
+  },
+  'stadium-poonthanam': {
+    name: 'Rammohan Road',
+    type: 'Primary Collector',
+    lengthKm: 0.45,
+    healthId: 'stadium-corridor',
+    baseSpeed: 45,
+  },
+  'stadium-midtown': {
+    name: 'Puthiyara Road',
+    type: 'City Link Road',
+    lengthKm: 0.55,
+    healthId: 'stadium-corridor',
+    baseSpeed: 40,
+  },
+  'midtown-east_bypass': {
+    name: 'Mini Bypass Road (South)',
+    type: 'Bypass Expressway',
+    lengthKm: 0.7,
+    healthId: 'mini-bypass',
+    baseSpeed: 60,
+  },
+  'east_bypass-poonthanam': {
+    name: 'Poonthanam Link Road',
+    type: 'City Link Road',
+    lengthKm: 0.6,
+    healthId: 'mini-bypass',
+    baseSpeed: 40,
+  },
+  'poonthanam-palayam': {
+    name: 'M.M Ali Road',
+    type: 'Arterial Corridor',
+    lengthKm: 0.45,
+    healthId: 'palayam-road',
+    baseSpeed: 50,
+  },
+  'palayam-mananchira': {
+    name: 'Bank Road',
+    type: 'Primary Collector',
+    lengthKm: 0.65,
+    healthId: 'palayam-road',
+    baseSpeed: 45,
+  },
+  'mavoor-mananchira': {
+    name: 'Mavoor Road (Inner)',
+    type: 'Arterial Corridor',
+    lengthKm: 0.85,
+    healthId: 'mavoor-road',
+    baseSpeed: 50,
+  },
+};

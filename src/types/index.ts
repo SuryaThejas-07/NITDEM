@@ -8,7 +8,8 @@ export type Page =
   | 'history'
   | 'alerts'
   | 'reports'
-  | 'events';
+  | 'events'
+  | 'drone_feed';
 
 export interface TrafficNode {
   id: string;
@@ -32,6 +33,8 @@ export interface Drone {
   altitude: number;
   status: 'streaming' | 'transit' | 'charging' | 'offline';
   targetNodeId?: string;
+  customRoute?: string[];
+  routeIndex?: number;
 }
 
 export interface Incident {
@@ -40,7 +43,7 @@ export interface Incident {
   location: string;
   priority: 'low' | 'medium' | 'high' | 'critical';
   description: string;
-  status: 'active' | 'resolved' | 'pending';
+  status: 'active' | 'resolved' | 'pending' | 'declined';
   timestamp: string;
   tokenId: string;
   lat?: number;
@@ -176,3 +179,14 @@ export interface SimulationResult {
   tokenId: string;
   timestamp: string;
 }
+
+export interface RoadLinkMetadata {
+  name: string;
+  type: string;
+  lengthKm: number;
+  healthId: string;
+  baseSpeed: number;
+}
+
+export type UserRole = 'supervisor' | 'operator' | 'technician';
+

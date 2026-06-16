@@ -131,8 +131,7 @@ export default function LocationPicker({ onClose, onConfirm, initialLat, initial
     >
       <motion.div
         initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
-        className="w-full max-w-2xl rounded-2xl border border-white/[0.08] overflow-hidden"
-        style={{ background: '#0F1117' }}
+        className="w-full max-w-2xl rounded-2xl border border-white/[0.08] overflow-hidden bg-[#0F1117]"
       >
         <div className="h-px bg-gradient-to-r from-transparent via-orange-500 to-transparent" />
         <div className="p-4 flex items-center justify-between border-b border-white/[0.06]">

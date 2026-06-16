@@ -1,16 +1,27 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Brain, Zap, Plane, AlertTriangle, Thermometer, Droplets, CloudRain, MapPin, TrendingUp, CheckCircle2, Sparkles, Activity } from 'lucide-react';
-import type { TrafficNode, Drone, PredictionWindow } from '../../types';
-import { AI_RECOMMENDATIONS, WEATHER, getPrediction, PREDICTION_WINDOW_LABELS, congestionToStatus } from '../../data/constants';
+import type { TrafficNode, Drone, PredictionWindow, RoadLinkMetadata } from '../../types';
+import { 
+  AI_RECOMMENDATIONS, 
+  WEATHER, 
+  getPrediction, 
+  PREDICTION_WINDOW_LABELS, 
+  congestionToStatus, 
+  ROAD_LINKS_METADATA, 
+  ROAD_HEALTH, 
+  roadHealthColor, 
+  TRAFFIC_NODES 
+} from '../../data/constants';
 import { statusColor, statusLabel } from '../../utils';
 
 interface IntelPanelProps {
   selectedNode: TrafficNode | null;
+  selectedLink: string | null;
   drones: Drone[];
   predictionWindow: PredictionWindow;
 }
 
-export default function IntelPanel({ selectedNode, drones, predictionWindow }: IntelPanelProps) {
+export default function IntelPanel({ selectedNode, selectedLink, drones, predictionWindow }: IntelPanelProps) {
   const recs = selectedNode ? (AI_RECOMMENDATIONS[selectedNode.id] || []) : [];
   const nearbyDrones = selectedNode
     ? drones.filter(d => d.location === selectedNode.name || d.targetNodeId === selectedNode.id)
@@ -18,9 +29,86 @@ export default function IntelPanel({ selectedNode, drones, predictionWindow }: I
   const prediction = selectedNode ? getPrediction(selectedNode, predictionWindow) : null;
   const isPredicting = predictionWindow !== 'current';
 
+  // Find nodes and metadata for selectedLink
+  const { linkNodes, linkMetadata, linkStats, linkRecommendations } = (() => {
+    if (!selectedLink || selectedNode) {
+      return { linkNodes: null, linkMetadata: null, linkStats: null, linkRecommendations: [] };
+    }
+    const [aId, bId] = selectedLink.split('-');
+    const a = TRAFFIC_NODES.find(n => n.id === aId);
+    const b = TRAFFIC_NODES.find(n => n.id === bId);
+    if (!a || !b) {
+      return { linkNodes: null, linkMetadata: null, linkStats: null, linkRecommendations: [] };
+    }
+
+    const metadata = ROAD_LINKS_METADATA[selectedLink] || ROAD_LINKS_METADATA[`${bId}-${aId}`] || {
+      name: `${a.name} ↔ ${b.name}`,
+      type: 'City Connector',
+      lengthKm: 0.6,
+      healthId: 'unknown',
+      baseSpeed: 45,
+    };
+
+    const predA = getPrediction(a, predictionWindow);
+    const predB = getPrediction(b, predictionWindow);
+
+    const statusA = predictionWindow === 'current' ? a.status : congestionToStatus(predA.congestion);
+    const statusB = predictionWindow === 'current' ? b.status : congestionToStatus(predB.congestion);
+    
+    const CONGESTION_ORDER = ['free', 'moderate', 'heavy', 'critical'] as const;
+    const worseStatus = CONGESTION_ORDER.indexOf(statusA) > CONGESTION_ORDER.indexOf(statusB) ? statusA : statusB;
+
+    const avgDensity = Math.round((predA.density + predB.density) / 2);
+    const totalVehicles = predA.vehicleCount + predB.vehicleCount;
+    const avgSpeed = Math.round((predA.avgSpeed + predB.avgSpeed) / 2);
+
+    // Travel time calculation: length / speed + signal delay
+    const speedKmh = Math.max(5, avgSpeed);
+    const baseMins = (metadata.lengthKm / speedKmh) * 60;
+    const delayMins = worseStatus === 'critical' ? 3.5 : worseStatus === 'heavy' ? 2.0 : worseStatus === 'moderate' ? 0.5 : 0;
+    const travelMins = parseFloat((baseMins + delayMins).toFixed(1));
+
+    const stats = {
+      avgDensity,
+      totalVehicles,
+      avgSpeed,
+      worseStatus,
+      travelMins,
+    };
+
+    // AI Recommendations for the corridor
+    const linkRecs = [];
+    if (worseStatus === 'critical' || worseStatus === 'heavy') {
+      linkRecs.push(`Reroute traffic at ${a.name} via secondary loops`);
+      linkRecs.push(`Adjust green signal offset on ${metadata.name}`);
+      linkRecs.push('Advise real-time speed reduction alert to GPS apps');
+    } else if (worseStatus === 'moderate') {
+      linkRecs.push(`Monitor merge lane activity at endpoint signals`);
+      linkRecs.push(`Optimal speed threshold maintained at ${avgSpeed} km/h`);
+    } else {
+      linkRecs.push(`Corridor operating under nominal flow. Green wave active.`);
+    }
+
+    // Associated health check
+    const healthItem = ROAD_HEALTH.find(h => h.id === metadata.healthId);
+    if (healthItem && (healthItem.status === 'critical' || healthItem.status === 'poor')) {
+      linkRecs.push(`CAUTION: ${healthItem.issues[0] || 'Road degradation detected'}`);
+      linkRecs.push('Prioritize dispatch of maintenance crew');
+    } else {
+      linkRecs.push(`Signal timings optimized for ${metadata.baseSpeed} km/h design speed`);
+    }
+
+    return {
+      linkNodes: { a, b },
+      linkMetadata: metadata,
+      linkStats: stats,
+      linkRecommendations: linkRecs,
+    };
+  })();
+
   return (
-    <div className="h-full flex flex-col border-l border-white/[0.06] overflow-hidden"
-      style={{ background: '#0F1117', width: 260 }}>
+    <div className="h-full flex flex-col border-l border-white/[0.06] overflow-hidden bg-[#0F1117]"
+      style={{ width: 260 }}>
       
       {/* Panel header */}
       <div className="h-14 border-b border-white/[0.06] flex items-center justify-between px-4 shrink-0">
@@ -35,7 +123,7 @@ export default function IntelPanel({ selectedNode, drones, predictionWindow }: I
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
         {/* Selected node info */}
         <AnimatePresence mode="wait">
-          <motion.div key={selectedNode?.id || 'default'}
+          <motion.div key={selectedNode?.id || selectedLink || 'default'}
             initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
             
             {selectedNode ? (
@@ -156,11 +244,103 @@ export default function IntelPanel({ selectedNode, drones, predictionWindow }: I
                   </div>
                 )}
               </div>
+            ) : selectedLink && linkNodes && linkMetadata && linkStats ? (
+              <div className="space-y-3">
+                {/* Location / Route Header */}
+                <div className="bg-white/[0.04] rounded-lg p-3 border border-white/[0.06]">
+                  <div className="flex items-center gap-2 mb-1">
+                    <TrendingUp className="w-3.5 h-3.5 text-orange-400 shrink-0" />
+                    <span className="text-xs font-semibold text-white">{linkMetadata.name}</span>
+                  </div>
+                  <div className="text-[9px] text-gray-500 font-mono mb-2">
+                    {linkNodes.a.name} ↔ {linkNodes.b.name} ({linkMetadata.type})
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: statusColor(linkStats.worseStatus) }} />
+                      <span className="text-[10px] font-mono" style={{ color: statusColor(linkStats.worseStatus) }}>
+                        {statusLabel(linkStats.worseStatus).toUpperCase()}
+                      </span>
+                    </div>
+                    <div className={`flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.5 rounded ${
+                      isPredicting ? 'bg-orange-500/15 text-orange-400' : 'bg-green-500/15 text-green-400'
+                    }`}>
+                      {isPredicting ? <Sparkles className="w-2.5 h-2.5" /> : <Activity className="w-2.5 h-2.5" />}
+                      {PREDICTION_WINDOW_LABELS[predictionWindow].toUpperCase()}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Stats grid */}
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { label: 'Avg Density', value: `${linkStats.avgDensity}%`, color: linkStats.avgDensity > 80 ? '#EF4444' : linkStats.avgDensity > 60 ? '#F97316' : '#22C55E' },
+                    { label: 'Est. Travel Time', value: `${linkStats.travelMins} min`, color: linkStats.worseStatus === 'critical' ? '#EF4444' : linkStats.worseStatus === 'heavy' ? '#F97316' : '#22C55E' },
+                    { label: 'Avg Speed', value: `${linkStats.avgSpeed} km/h`, color: '#3B82F6' },
+                    { label: 'Combined Volume', value: linkStats.totalVehicles.toLocaleString(), color: '#A855F7' },
+                  ].map(({ label, value, color }) => (
+                    <div key={label} className="bg-white/[0.03] rounded-lg p-2 border border-white/[0.05]">
+                      <div className="text-[9px] text-gray-500 font-mono mb-1">{label}</div>
+                      <div className="text-sm font-bold font-mono" style={{ color }}>{value}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Road Health Section */}
+                {(() => {
+                  const healthItem = ROAD_HEALTH.find(h => h.id === linkMetadata.healthId);
+                  if (!healthItem) return null;
+                  return (
+                    <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-2.5 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-mono text-gray-500 tracking-wider">ROAD HEALTH INDEX</span>
+                        <span className="text-[10px] font-mono font-bold" style={{ color: roadHealthColor(healthItem.status) }}>
+                          {healthItem.score}/100 ({healthItem.status.toUpperCase()})
+                        </span>
+                      </div>
+                      {healthItem.issues.length > 0 ? (
+                        <div className="space-y-1">
+                          {healthItem.issues.map((issue, idx) => (
+                            <div key={idx} className="text-[9px] text-red-300 flex items-start gap-1">
+                              <span className="text-red-400 shrink-0 mt-0.5">⚠️</span>
+                              <span>{issue}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-[9px] text-green-400 flex items-center gap-1">
+                          <CheckCircle2 className="w-2.5 h-2.5 text-green-400 shrink-0" />
+                          <span>No structural defects reported</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* AI Recommendations */}
+                <div className="rounded-lg border border-orange-500/20 overflow-hidden">
+                  <div className="bg-orange-500/10 px-3 py-1.5 flex items-center gap-2">
+                    <Brain className="w-3 h-3 text-orange-400" />
+                    <span className="text-[10px] font-mono text-orange-400 tracking-wider">CORRIDOR DIRECTIVES</span>
+                    <span className="ml-auto text-[9px] text-orange-300 font-mono">94% conf.</span>
+                  </div>
+                  <div className="p-2 space-y-1.5">
+                    {linkRecommendations.map((rec, i) => (
+                      <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.1 }}
+                        className="flex items-start gap-2">
+                        <Zap className="w-3 h-3 text-orange-400 shrink-0 mt-0.5" />
+                        <span className="text-[10px] text-gray-300 leading-relaxed">{rec}</span>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              </div>
             ) : (
               <div className="space-y-3">
                 <div className="bg-white/[0.03] rounded-lg p-3 border border-white/[0.05] text-center">
                   <MapPin className="w-6 h-6 text-gray-600 mx-auto mb-2" />
-                  <p className="text-[10px] text-gray-500 font-mono">Select a traffic node on the map to view intelligence</p>
+                  <p className="text-[10px] text-gray-500 font-mono">Select a traffic node or corridor on the map to view intelligence</p>
                 </div>
 
                 {/* System overview when no node selected */}

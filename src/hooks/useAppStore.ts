@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Page, TrafficNode, Drone, Incident, Token, Notification, PlannedEvent, DroneAnomaly, SimulationResult, SimulationAction, PredictionWindow } from '../types';
+import type { Page, TrafficNode, Drone, Incident, Token, Notification, PlannedEvent, DroneAnomaly, SimulationResult, SimulationAction, PredictionWindow, UserRole } from '../types';
 import { TRAFFIC_NODES, INITIAL_DRONES, SAMPLE_TOKENS, DRONE_ANOMALIES, runSimulation } from '../data/constants';
 
 const STORAGE_KEY = 'nitdem_tokens';
@@ -17,6 +17,19 @@ export function useAppStore() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentPage, setCurrentPage] = useState<Page>('map');
   const [selectedNode, setSelectedNode] = useState<TrafficNode | null>(null);
+  const [selectedLink, setSelectedLink] = useState<string | null>(null);
+  const [selectedDroneId, setSelectedDroneId] = useState<string | null>('alpha');
+  const [currentRole, setCurrentRole] = useState<UserRole>('supervisor');
+
+  const selectNode = useCallback((node: TrafficNode | null) => {
+    setSelectedNode(node);
+    if (node) setSelectedLink(null);
+  }, []);
+
+  const selectLink = useCallback((linkId: string | null) => {
+    setSelectedLink(linkId);
+    if (linkId) setSelectedNode(null);
+  }, []);
   const [isDark, setIsDark] = useState(true);
   const [drones, setDrones] = useState<Drone[]>(INITIAL_DRONES);
   const [tokens, setTokens] = useState<Token[]>(() => {
@@ -73,7 +86,7 @@ export function useAppStore() {
     localStorage.setItem(SIMULATIONS_KEY, JSON.stringify(simulations));
   }, [simulations]);
 
-  // Drone movement simulation
+  // Drone movement simulation with collision avoidance
   useEffect(() => {
     if (!isAuthenticated) return;
     const interval = setInterval(() => {
@@ -82,22 +95,79 @@ export function useAppStore() {
         const current = TRAFFIC_NODES.find(n => n.name === drone.location);
         if (!target || !current) return drone;
 
+        // Collision avoidance logic
+        const isHeadingToStadium = drone.targetNodeId === 'stadium';
+        const otherDrone = prev.find(d => d.id !== drone.id);
+        let shouldHold = false;
+
+        if (isHeadingToStadium && otherDrone) {
+          const otherAtStadium = otherDrone.location === 'Stadium Junction';
+          const otherHeadingToStadium = otherDrone.targetNodeId === 'stadium';
+
+          if (otherAtStadium) {
+            shouldHold = true;
+          } else if (otherHeadingToStadium) {
+            const stadiumNode = TRAFFIC_NODES.find(n => n.id === 'stadium');
+            if (stadiumNode) {
+              const myDist = Math.sqrt((stadiumNode.lat - drone.lat) ** 2 + (stadiumNode.lng - drone.lng) ** 2);
+              const otherDist = Math.sqrt((stadiumNode.lat - otherDrone.lat) ** 2 + (stadiumNode.lng - otherDrone.lng) ** 2);
+              if (myDist > otherDist) {
+                shouldHold = true;
+              } else if (myDist === otherDist && drone.id === 'bravo') {
+                shouldHold = true; // Alpha has priority if distance is identical
+              }
+            }
+          }
+        }
+
+        if (shouldHold) {
+          // Hovering: don't adjust lat/lng, drain battery slightly less
+          return {
+            ...drone,
+            battery: Math.max(10, drone.battery - 0.005),
+          };
+        }
+
         const dlat = target.lat - drone.lat;
         const dlng = target.lng - drone.lng;
         const dist = Math.sqrt(dlat * dlat + dlng * dlng);
 
         if (dist < 0.001) {
-          // Reached target, pick new target
-          const others = TRAFFIC_NODES.filter(n => n.id !== drone.targetNodeId);
-          const next = others[Math.floor(Math.random() * others.length)];
-          return {
-            ...drone,
-            location: target.name,
-            lat: target.lat,
-            lng: target.lng,
-            targetNodeId: next.id,
-            battery: Math.max(10, drone.battery - 0.1),
-          };
+          // Reached target, pick next target on the loop route or customRoute
+          const isAlpha = drone.id === 'alpha';
+          
+          if (drone.customRoute && drone.customRoute.length > 0) {
+            const currentIdx = drone.routeIndex !== undefined ? drone.routeIndex : 0;
+            const nextIdx = (currentIdx + 1) % drone.customRoute.length;
+            const nextTargetId = drone.customRoute[nextIdx];
+            
+            return {
+              ...drone,
+              location: target.name,
+              lat: target.lat,
+              lng: target.lng,
+              targetNodeId: nextTargetId,
+              routeIndex: nextIdx,
+              battery: Math.max(10, drone.battery - 0.1),
+            };
+          } else {
+            const route = isAlpha 
+              ? ['stadium', 'mavoor', 'bus_stand', 'arayidathupalam'] 
+              : ['mananchira', 'stadium', 'midtown', 'east_bypass', 'poonthanam', 'palayam'];
+            
+            const currentIdx = route.indexOf(drone.targetNodeId || '');
+            const nextIdx = currentIdx === -1 ? 0 : (currentIdx + 1) % route.length;
+            const nextTargetId = route[nextIdx];
+
+            return {
+              ...drone,
+              location: target.name,
+              lat: target.lat,
+              lng: target.lng,
+              targetNodeId: nextTargetId,
+              battery: Math.max(10, drone.battery - 0.1),
+            };
+          }
         }
 
         return {
@@ -145,7 +215,7 @@ export function useAppStore() {
       type: data.type,
       priority: data.priority,
       location: data.location,
-      status: 'active',
+      status: 'pending',
       description: data.description,
       generatedBy: 'Operator: admin',
       lat: data.lat,
@@ -156,11 +226,59 @@ export function useAppStore() {
       id: Math.random().toString(36).slice(2),
       timestamp: new Date().toISOString(),
       tokenId: token.id,
-      status: 'active',
+      status: 'pending',
     };
     setIncidents(prev => [incident, ...prev]);
     return incident;
   }, [createToken]);
+
+  const updateIncidentStatus = useCallback((id: string, status: Incident['status']) => {
+    setIncidents(prev => prev.map(inc => {
+      if (inc.id === id) {
+        // Also update the associated token status
+        setTokens(tPrev => tPrev.map(t => {
+          if (t.id === inc.tokenId) {
+            return {
+              ...t,
+              status: status === 'active' ? 'active' : status === 'declined' ? 'resolved' : 'pending'
+            };
+          }
+          return t;
+        }));
+
+        // Twilio / SendGrid simulation alerts
+        if (status === 'active' && (inc.priority === 'high' || inc.priority === 'critical')) {
+          addNotification({
+            type: 'success',
+            title: 'TWILIO DISPATCH',
+            message: `Emergency SMS broadcasted for ${inc.type} at ${inc.location}.`,
+          });
+          addNotification({
+            type: 'info',
+            title: 'SENDGRID DISPATCH',
+            message: `Incident details email dispatched to emergency personnel.`,
+          });
+        }
+
+        return { ...inc, status };
+      }
+      return inc;
+    }));
+  }, [addNotification]);
+
+  const updateDroneRoute = useCallback((droneId: string, nodeIds: string[]) => {
+    setDrones(prev => prev.map(d => {
+      if (d.id === droneId) {
+        return {
+          ...d,
+          customRoute: nodeIds,
+          routeIndex: 0,
+          targetNodeId: nodeIds[0] || d.targetNodeId
+        };
+      }
+      return d;
+    }));
+  }, []);
 
   const createEvent = useCallback((data: Omit<PlannedEvent, 'id' | 'tokenId' | 'createdAt'>) => {
     const token = createToken({
@@ -234,6 +352,9 @@ export function useAppStore() {
     setIsAuthenticated(false);
     setCurrentPage('map');
     setSelectedNode(null);
+    setSelectedLink(null);
+    setSelectedDroneId('alpha');
+    setCurrentRole('supervisor');
   }, []);
 
   const dismissNotification = useCallback((id: string) => {
@@ -243,7 +364,12 @@ export function useAppStore() {
   return {
     isAuthenticated, setIsAuthenticated,
     currentPage, setCurrentPage,
-    selectedNode, setSelectedNode,
+    selectedNode, setSelectedNode: selectNode,
+    selectedLink, setSelectedLink: selectLink,
+    selectedDroneId, setSelectedDroneId,
+    currentRole, setCurrentRole,
+    updateIncidentStatus,
+    updateDroneRoute,
     isDark, setIsDark,
     drones,
     tokens, setTokens,

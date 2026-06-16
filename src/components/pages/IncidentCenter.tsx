@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, Plus, X, CheckCircle, Clock, Hash, MapPin, Crosshair } from 'lucide-react';
-import type { Incident } from '../../types';
+import type { Incident, UserRole } from '../../types';
 import { formatRelative, priorityBadgeClass } from '../../utils';
 import LocationPicker from '../map/LocationPicker';
 
 interface IncidentCenterProps {
   incidents: Incident[];
   onLogIncident: (data: Omit<Incident, 'id' | 'timestamp' | 'tokenId' | 'status'>) => void;
+  currentRole: UserRole;
+  onUpdateIncidentStatus: (id: string, status: Incident['status']) => void;
 }
 
 const INCIDENT_TYPES = ['Road Accident', 'Road Block', 'Vehicle Breakdown', 'Congestion Alert', 'Flooding', 'Traffic Signal Failure', 'VIP Movement', 'Other'];
@@ -20,12 +22,20 @@ interface SelectedLocation {
   affectedRoads: string[];
 }
 
-export default function IncidentCenter({ incidents, onLogIncident }: IncidentCenterProps) {
+export default function IncidentCenter({ incidents, onLogIncident, currentRole, onUpdateIncidentStatus }: IncidentCenterProps) {
   const [showModal, setShowModal] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [form, setForm] = useState({ type: INCIDENT_TYPES[0], location: LOCATIONS[0], priority: 'high' as const, description: '' });
   const [selectedLoc, setSelectedLoc] = useState<SelectedLocation | null>(null);
   const [submitted, setSubmitted] = useState<string | null>(null);
+  const [roleWarningId, setRoleWarningId] = useState<string | null>(null);
+
+  const alertRoleWarning = (id: string) => {
+    setRoleWarningId(id);
+    setTimeout(() => {
+      setRoleWarningId(prev => prev === id ? null : prev);
+    }, 3000);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,7 +77,11 @@ export default function IncidentCenter({ incidents, onLogIncident }: IncidentCen
         ) : allIncidents.map((incident, i) => (
           <motion.div key={incident.id}
             initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
-            className="bg-[#0F1117] border border-white/[0.06] rounded-xl p-4 flex items-start gap-4">
+            className={`bg-[#0F1117] border rounded-xl p-4 flex items-start gap-4 transition-all ${
+              incident.status === 'declined' ? 'opacity-40 border-gray-800' :
+              incident.status === 'active' ? 'border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.05)]' :
+              incident.status === 'pending' ? 'border-yellow-500/20' : 'border-white/[0.06]'
+            }`}>
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
               incident.priority === 'critical' ? 'bg-red-500/20' : incident.priority === 'high' ? 'bg-orange-500/20' : 'bg-yellow-500/20'
             }`}>
@@ -77,19 +91,20 @@ export default function IncidentCenter({ incidents, onLogIncident }: IncidentCen
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap mb-1">
-                <span className="text-sm font-semibold text-white">{incident.type}</span>
+                <span className={`text-sm font-semibold text-white ${incident.status === 'declined' ? 'line-through' : ''}`}>{incident.type}</span>
                 <span className={`text-[9px] font-mono px-2 py-0.5 rounded border ${priorityBadgeClass(incident.priority)}`}>
                   {incident.priority.toUpperCase()}
                 </span>
                 <span className={`text-[9px] font-mono px-2 py-0.5 rounded border ${
                   incident.status === 'active' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
                   incident.status === 'resolved' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
+                  incident.status === 'declined' ? 'bg-gray-500/10 text-gray-400 border-gray-500/20' :
                   'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
                 }`}>
                   {incident.status.toUpperCase()}
                 </span>
               </div>
-              <p className="text-xs text-gray-400 mb-2">{incident.description}</p>
+              <p className={`text-xs text-gray-400 mb-2 ${incident.status === 'declined' ? 'line-through' : ''}`}>{incident.description}</p>
               <div className="flex items-center gap-4 text-[10px] font-mono text-gray-500 flex-wrap">
                 <span>📍 {incident.location}</span>
                 {incident.lat && incident.lng && (
@@ -101,6 +116,55 @@ export default function IncidentCenter({ incidents, onLogIncident }: IncidentCen
                 <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatRelative(incident.timestamp)}</span>
                 <span className="flex items-center gap-1 text-orange-400"><Hash className="w-3 h-3" />{incident.tokenId}</span>
               </div>
+
+              {incident.status === 'pending' && (
+                <div className="mt-3 flex items-center justify-between gap-4 border-t border-white/[0.04] pt-3 flex-wrap">
+                  <span className="text-[10px] font-mono text-yellow-400 flex items-center gap-1">
+                    ⚠️ Awaiting Supervisor Validation
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        if (currentRole === 'supervisor') {
+                          onUpdateIncidentStatus(incident.id, 'active');
+                        } else {
+                          alertRoleWarning(incident.id);
+                        }
+                      }}
+                      className={`px-3 py-1 rounded text-[10px] font-mono uppercase font-bold transition-all ${
+                        currentRole === 'supervisor'
+                          ? 'bg-green-500 hover:bg-green-600 text-black shadow-[0_0_8px_rgba(34,197,94,0.3)]'
+                          : 'bg-white/[0.02] text-gray-500 border border-white/[0.04] cursor-not-allowed hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20'
+                      }`}
+                    >
+                      Accept
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (currentRole === 'supervisor') {
+                          onUpdateIncidentStatus(incident.id, 'declined');
+                        } else {
+                          alertRoleWarning(incident.id);
+                        }
+                      }}
+                      className={`px-3 py-1 rounded text-[10px] font-mono uppercase font-bold transition-all ${
+                        currentRole === 'supervisor'
+                          ? 'bg-red-500 hover:bg-red-600 text-white shadow-[0_0_8px_rgba(239,68,68,0.3)]'
+                          : 'bg-white/[0.02] text-gray-500 border border-white/[0.04] cursor-not-allowed hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20'
+                      }`}
+                    >
+                      Decline
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {roleWarningId === incident.id && (
+                <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}
+                  className="text-[9px] font-mono text-red-400 mt-2 bg-red-500/10 border border-red-500/20 rounded px-2.5 py-1 flex items-center gap-1.5">
+                  🛑 ACCESS DENIED: Requires Supervisor (L3) elevation to validate dispatch tokens.
+                </motion.div>
+              )}
             </div>
           </motion.div>
         ))}
@@ -130,8 +194,7 @@ export default function IncidentCenter({ incidents, onLogIncident }: IncidentCen
           >
             <motion.div
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-md rounded-2xl border border-white/[0.08] overflow-hidden"
-              style={{ background: '#0F1117' }}>
+              className="w-full max-w-md rounded-2xl border border-white/[0.08] overflow-hidden bg-[#0F1117]">
               <div className="h-px bg-gradient-to-r from-transparent via-red-500 to-transparent" />
               <div className="p-6">
                 {submitted ? (

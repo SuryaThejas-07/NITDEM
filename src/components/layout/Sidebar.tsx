@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Map, LayoutDashboard, BarChart3, TrendingUp, AlertTriangle,
-  Plane, Clock, Zap, FileText, LogOut, Shield, ChevronLeft, ChevronRight, Calendar
+  Plane, Clock, Zap, FileText, LogOut, Shield, ChevronLeft, ChevronRight, Calendar, Camera
 } from 'lucide-react';
 import type { Page } from '../../types';
 
@@ -22,6 +22,7 @@ const NAV_ITEMS: { page: Page; label: string; icon: React.ComponentType<{ classN
   { page: 'incidents', label: 'Incident Center', icon: AlertTriangle },
   { page: 'events', label: 'Event Planning Center', icon: Calendar },
   { page: 'drones', label: 'Drone Operations', icon: Plane },
+  { page: 'drone_feed', label: 'Drone Feeds', icon: Camera },
   { page: 'history', label: 'Historical Intel', icon: Clock },
   { page: 'alerts', label: 'Alert Generator', icon: Zap },
   { page: 'reports', label: 'Reports', icon: FileText },
@@ -33,8 +34,7 @@ export default function Sidebar({ currentPage, onNavigate, onLogout, isOpen, onT
       <motion.aside
         animate={{ width: isOpen ? 220 : 60 }}
         transition={{ duration: 0.3, ease: 'easeInOut' }}
-        className="relative h-full flex flex-col border-r border-white/[0.06] overflow-hidden shrink-0"
-        style={{ background: '#0F1117' }}
+        className="relative h-full flex flex-col border-r border-white/[0.06] overflow-hidden shrink-0 bg-[#0F1117]"
       >
         {/* Logo */}
         <div className="h-14 flex items-center border-b border-white/[0.06] px-3 shrink-0">

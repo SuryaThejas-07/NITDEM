@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, X, MapPin, Crosshair,
-  Hash, Clock, Users, CheckCircle, LayoutGrid, List
+  Hash, Clock, Users, CheckCircle, LayoutGrid, List, Sparkles
 } from 'lucide-react';
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, addMonths, subMonths,
@@ -56,7 +56,7 @@ const DEFAULT_FORM: EventForm = {
 };
 
 export default function EventPlanningCenter({ events, onCreateEvent }: EventPlanningProps) {
-  const [viewMode, setViewMode] = useState<'month' | 'day'>('month');
+  const [viewMode, setViewMode] = useState<'month' | 'day' | 'rankings'>('month');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -137,6 +137,12 @@ export default function EventPlanningCenter({ events, onCreateEvent }: EventPlan
               }`}>
               <List className="w-3 h-3" /> Day
             </button>
+            <button onClick={() => setViewMode('rankings')}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-[10px] font-mono uppercase transition-all ${
+                viewMode === 'rankings' ? 'bg-orange-500/20 text-orange-400' : 'text-gray-500 hover:text-white'
+              }`}>
+              <Sparkles className="w-3 h-3" /> Rankings
+            </button>
           </div>
         </div>
       </div>
@@ -201,7 +207,7 @@ export default function EventPlanningCenter({ events, onCreateEvent }: EventPlan
               })}
             </div>
           </div>
-        ) : (
+        ) : viewMode === 'day' ? (
           // Day view — list of upcoming events
           <div className="p-4 space-y-2">
             {events.length === 0 ? (
@@ -235,6 +241,112 @@ export default function EventPlanningCenter({ events, onCreateEvent }: EventPlan
               </motion.div>
             ))}
           </div>
+        ) : (
+          // Rankings view
+          <div className="p-4 space-y-3">
+            {events.length === 0 ? (
+              <div className="text-center py-12">
+                <Sparkles className="w-10 h-10 text-gray-700 mx-auto mb-2" />
+                <p className="text-sm text-gray-500">No events scheduled. Click a date in Month view to schedule an event and generate ranks.</p>
+              </div>
+            ) : (() => {
+              const rankedEvents = [...events].map(ev => {
+                const baseScore = ev.expectedAttendance / 120;
+                
+                let priorityBonus = 5;
+                if (ev.priority === 'critical') priorityBonus = 45;
+                else if (ev.priority === 'high') priorityBonus = 30;
+                else if (ev.priority === 'medium') priorityBonus = 15;
+                
+                let typeBonus = 5;
+                if (ev.type === 'Political Rally') typeBonus = 30;
+                else if (ev.type === 'VIP Visit') typeBonus = 30;
+                else if (ev.type === 'Procession') typeBonus = 20;
+                else if (ev.type === 'Road Work') typeBonus = 20;
+                else if (ev.type === 'Festival') typeBonus = 15;
+                else if (ev.type === 'Football Match') typeBonus = 10;
+                
+                const odi = parseFloat((baseScore + priorityBonus + typeBonus).toFixed(1));
+                
+                let warning = "Standard passive monitoring recommended.";
+                if (odi > 80) {
+                  warning = "🚨 CRITICAL DISRUPTION THREAT: Requires full deployment of traffic blockades, active drone corridor, and emergency services standby.";
+                } else if (odi > 50) {
+                  warning = "⚠️ HIGH DISRUPTION THREAT: Requires drone monitoring at peaks, traffic officer manual override, and parking restrictions.";
+                } else if (odi > 30) {
+                  warning = "⚡ MODERATE DISRUPTION THREAT: Requires routine patrol scheduling and traffic signals fine-tuning.";
+                }
+                
+                let suggestion = "";
+                if (ev.type === 'Road Work') {
+                  suggestion = "Traffic diversion route mapping via Mini Bypass required.";
+                } else if (ev.type === 'Political Rally' || ev.type === 'VIP Visit') {
+                  suggestion = "Active secure transit lane monitoring. Zero parking zoning within 500m.";
+                } else if (ev.type === 'Festival' || ev.type === 'Football Match') {
+                  suggestion = "Spectator surge routing on Mavoor Road approach. High pedestrian densities expected.";
+                }
+
+                return { ...ev, odi, warning, suggestion };
+              }).sort((a, b) => b.odi - a.odi);
+
+              return rankedEvents.map((ev, index) => {
+                const rankColor = index === 0 ? 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10' :
+                                  index === 1 ? 'text-gray-300 border-gray-400/30 bg-gray-400/10' :
+                                  index === 2 ? 'text-amber-600 border-amber-600/30 bg-amber-600/10' :
+                                  'text-gray-500 border-white/[0.06] bg-white/[0.02]';
+                
+                const rankLabel = `#${index + 1}`;
+                
+                return (
+                  <motion.div key={ev.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}
+                    className="bg-[#0F1117] border border-white/[0.06] rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex items-start gap-4">
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-mono font-bold text-base shrink-0 border ${rankColor}`}>
+                        {rankLabel}
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold text-white">{ev.name}</span>
+                          <span className="text-[9px] font-mono px-2 py-0.5 rounded" style={{ background: `${EVENT_TYPE_COLORS[ev.type]}20`, color: EVENT_TYPE_COLORS[ev.type] }}>
+                            {ev.type}
+                          </span>
+                          <span className={`text-[9px] font-mono px-2 py-0.5 rounded border ${priorityBadgeClass(ev.priority)}`}>
+                            {ev.priority.toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 text-[10px] font-mono text-gray-500 flex-wrap">
+                          <span className="flex items-center gap-1"><CalendarIcon className="w-3 h-3" />{format(parseISO(ev.date), 'dd MMM yyyy')}</span>
+                          <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{ev.startTime} – {ev.endTime}</span>
+                          <span className="flex items-center gap-1"><Users className="w-3 h-3" />{ev.expectedAttendance.toLocaleString()}</span>
+                          {ev.zoneName && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{ev.zoneName}</span>}
+                        </div>
+                        <div className="text-[11px] font-mono text-gray-400 bg-white/[0.02] border border-white/[0.04] rounded p-2.5 mt-2 space-y-1">
+                          <div className={ev.odi > 50 ? 'text-orange-400 font-bold' : 'text-gray-300'}>{ev.warning}</div>
+                          {ev.suggestion && <div className="text-cyan-400 text-[10px]">💡 Strategy: {ev.suggestion}</div>}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Disruption index gauge */}
+                    <div className="flex flex-col items-end shrink-0 min-w-[120px]">
+                      <span className="text-[8px] font-mono text-gray-500 tracking-wider uppercase mb-1">DISRUPTION INDEX</span>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-xl font-bold text-white font-mono">{ev.odi}</span>
+                        <span className="text-[10px] text-gray-500 font-mono">/ 100+</span>
+                      </div>
+                      <div className="w-full bg-white/[0.04] h-1.5 rounded-full overflow-hidden mt-1.5">
+                        <div className={`h-full ${
+                          ev.odi > 80 ? 'bg-red-500' :
+                          ev.odi > 50 ? 'bg-orange-500' :
+                          ev.odi > 30 ? 'bg-yellow-500' : 'bg-green-500'
+                        }`} style={{ width: `${Math.min(100, ev.odi)}%` }} />
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              });
+            })()}
+          </div>
         )}
       </div>
 
@@ -249,8 +361,7 @@ export default function EventPlanningCenter({ events, onCreateEvent }: EventPlan
           >
             <motion.div
               initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
-              className="w-full max-w-lg rounded-2xl border border-white/[0.08] overflow-hidden max-h-[90vh] overflow-y-auto"
-              style={{ background: '#0F1117' }}
+              className="w-full max-w-lg rounded-2xl border border-white/[0.08] overflow-hidden max-h-[90vh] overflow-y-auto bg-[#0F1117]"
             >
               <div className="h-px bg-gradient-to-r from-transparent via-orange-500 to-transparent sticky top-0" />
               <div className="p-6">

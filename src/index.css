@@ -60,12 +60,143 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 /* Light mode overrides */
 .light-mode {
-  --bg-primary: #F5F6F8;
+  --bg-primary: #F3F4F6;
   --bg-secondary: #FFFFFF;
 }
 
 .light-mode body,
 .light-mode #root {
-  background: #F5F6F8;
-  color: #111827;
+  background: #F3F4F6 !important;
+  color: #111827 !important;
+}
+
+/* Override dark panels with light panels */
+.light-mode header,
+.light-mode aside,
+.light-mode .intel-panel,
+.light-mode .bg-\[\#0F1117\],
+.light-mode .bg-\[\#0f1117\],
+.light-mode .bg-\[\#151820\] {
+  background-color: #FFFFFF !important;
+  background: #FFFFFF !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Background of main page areas */
+.light-mode main,
+.light-mode .bg-\[\#0A0C10\],
+.light-mode .bg-\[\#0a0c10\] {
+  background-color: #F3F4F6 !important;
+  background: #F3F4F6 !important;
+}
+
+/* Card backgrounds and borders in light mode */
+.light-mode [class*="bg-white/"] {
+  background-color: #FFFFFF !important;
+  background: #FFFFFF !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+.light-mode [class*="border-white/"] {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Text overrides */
+.light-mode .text-white {
+  color: #111827 !important;
+}
+
+.light-mode .text-gray-300 {
+  color: #2D3748 !important;
+}
+
+.light-mode .text-gray-400 {
+  color: #4A5568 !important;
+}
+
+.light-mode .text-gray-500 {
+  color: #718096 !important;
+}
+
+.light-mode .text-gray-600 {
+  color: #A0AEC0 !important;
+}
+
+/* High contrast Intel Panel overrides for light mode */
+.light-mode .intel-panel .text-white {
+  color: #1A202C !important;
+}
+.light-mode .intel-panel .text-gray-300 {
+  color: #2D3748 !important;
+}
+.light-mode .intel-panel .text-gray-400 {
+  color: #4A5568 !important;
+}
+.light-mode .intel-panel .text-gray-500 {
+  color: #718096 !important;
+}
+.light-mode .intel-panel div[class*="bg-white/"] {
+  background-color: #F7FAFC !important;
+  background: #F7FAFC !important;
+}
+
+/* Menu hover overrides */
+.light-mode .hover\:bg-white\/\[0\.04\]:hover {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+}
+
+/* CommandMap details tooltip overlay */
+.light-mode .leaflet-control-zoom,
+.light-mode .leaflet-control-zoom a {
+  background: #FFFFFF !important;
+  color: #374151 !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+.light-mode .leaflet-control-zoom a:hover {
+  background: #F3F4F6 !important;
+  color: #000000 !important;
+}
+
+/* Specific elements like select boxes, inputs, buttons */
+.light-mode select,
+.light-mode input,
+.light-mode textarea {
+  background-color: #FFFFFF !important;
+  color: #111827 !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+}
+
+.light-mode option {
+  background-color: #FFFFFF !important;
+  color: #111827 !important;
+}
+
+/* Light theme leaflet map canvas background */
+.light-mode .leaflet-container {
+  background: #E5E7EB !important;
+}
+
+/* Responsive typography scale adjustments for enhanced accessibility and readability */
+@media (min-width: 640px) {
+  .text-\[8px\] { font-size: 10.5px !important; }
+  .text-\[9px\] { font-size: 11.5px !important; }
+  .text-\[10px\] { font-size: 13px !important; }
+  .text-\[11px\] { font-size: 14px !important; }
+  .text-xs { font-size: 14.5px !important; }
+  .text-sm { font-size: 16px !important; }
+  .text-base { font-size: 18px !important; }
+  .text-lg { font-size: 21px !important; }
+  .text-xl { font-size: 25px !important; }
+}
+
+@media (max-width: 639px) {
+  .text-\[8px\] { font-size: 10px !important; }
+  .text-\[9px\] { font-size: 11px !important; }
+  .text-\[10px\] { font-size: 12.5px !important; }
+  .text-\[11px\] { font-size: 13.5px !important; }
+  .text-xs { font-size: 13.5px !important; }
+  .text-sm { font-size: 15px !important; }
+  .text-base { font-size: 17px !important; }
+  .text-lg { font-size: 19px !important; }
+  .text-xl { font-size: 23px !important; }
 }
