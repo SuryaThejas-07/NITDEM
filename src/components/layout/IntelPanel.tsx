@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Brain, Zap, Plane, AlertTriangle, Thermometer, Droplets, CloudRain, MapPin, TrendingUp, CheckCircle2, Sparkles, Activity } from 'lucide-react';
+import { Brain, Zap, Plane, AlertTriangle, Thermometer, Droplets, CloudRain, MapPin, TrendingUp, CheckCircle2, Sparkles, Activity, ArrowLeft } from 'lucide-react';
 import type { TrafficNode, Drone, PredictionWindow, RoadLinkMetadata } from '../../types';
 import { 
   AI_RECOMMENDATIONS, 
@@ -19,9 +20,11 @@ interface IntelPanelProps {
   selectedLink: string | null;
   drones: Drone[];
   predictionWindow: PredictionWindow;
+  onClearSelection?: () => void;
 }
 
-export default function IntelPanel({ selectedNode, selectedLink, drones, predictionWindow }: IntelPanelProps) {
+export default function IntelPanel({ selectedNode, selectedLink, drones, predictionWindow, onClearSelection }: IntelPanelProps) {
+  const [activeTab, setActiveTab] = useState<'live' | 'forecast20'>('live');
   const recs = selectedNode ? (AI_RECOMMENDATIONS[selectedNode.id] || []) : [];
   const nearbyDrones = selectedNode
     ? drones.filter(d => d.location === selectedNode.name || d.targetNodeId === selectedNode.id)
@@ -111,17 +114,47 @@ export default function IntelPanel({ selectedNode, selectedLink, drones, predict
       style={{ width: 260 }}>
       
       {/* Panel header */}
-      <div className="h-14 border-b border-white/[0.06] flex items-center justify-between px-4 shrink-0">
-        <span className="text-[10px] font-mono text-gray-500 tracking-widest uppercase">Intelligence</span>
-        <div className="flex items-center gap-1">
-          <motion.div animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 1.5, repeat: Infinity }}
-            className="w-1 h-1 rounded-full bg-orange-400" />
-          <span className="text-[9px] font-mono text-orange-400">LIVE</span>
+      <div className="border-b border-white/[0.06] shrink-0">
+        <div className="h-12 flex items-center justify-between px-3">
+          {(selectedNode || selectedLink) && onClearSelection ? (
+            <button
+              onClick={onClearSelection}
+              className="flex items-center gap-1 text-[10px] font-mono text-gray-400 hover:text-orange-400 transition-colors"
+              aria-label="Back to overview"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" /> Back to overview
+            </button>
+          ) : (
+            <span className="text-[10px] font-mono text-gray-500 tracking-widest uppercase">Intelligence</span>
+          )}
+          <div className="flex items-center gap-1">
+            <motion.div animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 1.5, repeat: Infinity }}
+              className="w-1 h-1 rounded-full bg-orange-400" />
+            <span className="text-[9px] font-mono text-orange-400">LIVE</span>
+          </div>
+        </div>
+        {/* Tabs */}
+        <div className="px-2 pb-2 flex gap-1">
+          <button onClick={() => setActiveTab('live')}
+            className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded text-[9px] font-mono uppercase tracking-wider transition-all ${
+              activeTab === 'live' ? 'bg-green-500/15 text-green-400 border border-green-500/30' : 'text-gray-500 hover:text-white border border-transparent'
+            }`}>
+            <Activity className="w-3 h-3" /> Live
+          </button>
+          <button onClick={() => setActiveTab('forecast20')}
+            className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded text-[9px] font-mono uppercase tracking-wider transition-all ${
+              activeTab === 'forecast20' ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30' : 'text-gray-500 hover:text-white border border-transparent'
+            }`}>
+            <Sparkles className="w-3 h-3" /> 20-Min Forecast
+          </button>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
-        {/* Selected node info */}
+        {activeTab === 'forecast20' ? (
+          <Forecast20Panel selectedNode={selectedNode} />
+        ) : (
+        /* Selected node info */
         <AnimatePresence mode="wait">
           <motion.div key={selectedNode?.id || selectedLink || 'default'}
             initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
@@ -364,8 +397,10 @@ export default function IntelPanel({ selectedNode, selectedLink, drones, predict
             )}
           </motion.div>
         </AnimatePresence>
+        )}
 
         {/* Weather */}
+        {activeTab === 'live' && (
         <div className="rounded-lg border border-white/[0.06] overflow-hidden">
           <div className="px-3 py-1.5 border-b border-white/[0.05] flex items-center gap-2">
             <Thermometer className="w-3 h-3 text-cyan-400" />
@@ -394,8 +429,10 @@ export default function IntelPanel({ selectedNode, selectedLink, drones, predict
             </div>
           </div>
         </div>
+        )}
 
         {/* System health */}
+        {activeTab === 'live' && (
         <div className="space-y-1">
           <div className="text-[9px] font-mono text-gray-600 tracking-widest uppercase px-1">System Health</div>
           {['AI Model', 'Drone Network', 'Map Services', 'Token Engine'].map(sys => (
@@ -408,7 +445,57 @@ export default function IntelPanel({ selectedNode, selectedLink, drones, predict
             </div>
           ))}
         </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+function Forecast20Panel({ selectedNode }: { selectedNode: TrafficNode | null }) {
+  const nodes = selectedNode ? [selectedNode] : TRAFFIC_NODES;
+  return (
+    <div className="space-y-2">
+      <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-2.5 flex items-center gap-2">
+        <Sparkles className="w-3.5 h-3.5 text-orange-400 shrink-0" />
+        <div>
+          <div className="text-[10px] font-mono text-orange-400 tracking-wider">20-MIN PREDICTION</div>
+          <div className="text-[9px] text-gray-400">{selectedNode ? `Forecast for ${selectedNode.name}` : 'Forecast across all monitored junctions'}</div>
+        </div>
+      </div>
+      {nodes.map(node => {
+        const pred = getPrediction(node, '20min');
+        const status = congestionToStatus(pred.congestion);
+        const color = statusColor(status);
+        return (
+          <div key={node.id} className="bg-white/[0.03] border border-white/[0.05] rounded-lg p-2.5 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                <span className="text-[11px] font-semibold text-white truncate">{node.name}</span>
+              </div>
+              <span className="text-[9px] font-mono uppercase shrink-0" style={{ color }}>{statusLabel(status)}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5">
+              <div className="bg-white/[0.03] rounded p-1.5">
+                <div className="text-[8px] text-gray-500 font-mono">Density</div>
+                <div className="text-[11px] font-bold font-mono" style={{ color }}>{pred.density}%</div>
+              </div>
+              <div className="bg-white/[0.03] rounded p-1.5">
+                <div className="text-[8px] text-gray-500 font-mono">Vehicles</div>
+                <div className="text-[11px] font-bold font-mono text-orange-400">{pred.vehicleCount.toLocaleString()}</div>
+              </div>
+              <div className="bg-white/[0.03] rounded p-1.5">
+                <div className="text-[8px] text-gray-500 font-mono">Speed</div>
+                <div className="text-[11px] font-bold font-mono text-blue-400">{pred.avgSpeed}<span className="text-[8px] text-gray-500"> km/h</span></div>
+              </div>
+            </div>
+            <div className="flex items-center justify-between text-[9px] font-mono">
+              <span className="text-gray-500">Confidence</span>
+              <span className="text-purple-400">{pred.confidence}%</span>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

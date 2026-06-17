@@ -81,10 +81,11 @@ export default function App() {
             onLogIncident={store.logIncident}
             currentRole={store.currentRole}
             onUpdateIncidentStatus={store.updateIncidentStatus}
+            onUpdateIncident={store.updateIncident}
           />
         );
       case 'events':
-        return <EventPlanningCenter events={store.events} onCreateEvent={store.createEvent} />;
+        return <EventPlanningCenter events={store.events} onCreateEvent={store.createEvent} onUpdateEvent={store.updateEvent} />;
       case 'drones':
         return <DroneOperations drones={store.drones} />;
       case 'history':
@@ -177,6 +178,10 @@ export default function App() {
                 selectedLink={store.selectedLink}
                 drones={store.drones}
                 predictionWindow={store.predictionWindow}
+                onClearSelection={() => {
+                  store.setSelectedNode(null);
+                  store.setSelectedLink(null);
+                }}
               />
             </div>
           )}

@@ -266,6 +266,14 @@ export function useAppStore() {
     }));
   }, [addNotification]);
 
+  const updateIncident = useCallback((id: string, updates: Partial<Incident>) => {
+    setIncidents(prev => prev.map(inc => inc.id === id ? { ...inc, ...updates } : inc));
+  }, []);
+
+  const updateEvent = useCallback((id: string, updates: Partial<PlannedEvent>) => {
+    setEvents(prev => prev.map(ev => ev.id === id ? { ...ev, ...updates } : ev));
+  }, []);
+
   const updateDroneRoute = useCallback((droneId: string, nodeIds: string[]) => {
     setDrones(prev => prev.map(d => {
       if (d.id === droneId) {
@@ -369,6 +377,8 @@ export function useAppStore() {
     selectedDroneId, setSelectedDroneId,
     currentRole, setCurrentRole,
     updateIncidentStatus,
+    updateIncident,
+    updateEvent,
     updateDroneRoute,
     isDark, setIsDark,
     drones,
