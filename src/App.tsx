@@ -17,6 +17,7 @@ import DroneOperations from './components/pages/DroneOperations';
 import HistoricalIntelligence from './components/pages/HistoricalIntelligence';
 import AlertGenerator from './components/pages/AlertGenerator';
 import Reports from './components/pages/Reports';
+import DroneFeed from './components/pages/DroneFeed';
 import { useAppStore } from './hooks/useAppStore';
 import type { Page } from './types';
 
@@ -31,6 +32,7 @@ const PAGE_TITLES: Record<Page, string> = {
   history: 'Historical Intelligence',
   alerts: 'Alert Generator',
   reports: 'Reports',
+  drone_feed: 'Drone Live Feeds',
 };
 
 export default function App() {
@@ -54,9 +56,18 @@ export default function App() {
           <CommandMap
             selectedNode={store.selectedNode}
             onNodeSelect={store.setSelectedNode}
+            selectedLink={store.selectedLink}
+            onLinkSelect={store.setSelectedLink}
             drones={store.drones}
             predictionWindow={store.predictionWindow}
             onPredictionWindowChange={store.setPredictionWindow}
+            onDroneClick={(droneId) => {
+              store.setSelectedDroneId(droneId);
+              store.setCurrentPage('drone_feed');
+            }}
+            currentRole={store.currentRole}
+            onUpdateDroneRoute={store.updateDroneRoute}
+            isDark={store.isDark}
           />
         );
       case 'analytics':
@@ -64,7 +75,14 @@ export default function App() {
       case 'forecasting':
         return <TrafficForecasting />;
       case 'incidents':
-        return <IncidentCenter incidents={store.incidents} onLogIncident={store.logIncident} />;
+        return (
+          <IncidentCenter
+            incidents={store.incidents}
+            onLogIncident={store.logIncident}
+            currentRole={store.currentRole}
+            onUpdateIncidentStatus={store.updateIncidentStatus}
+          />
+        );
       case 'events':
         return <EventPlanningCenter events={store.events} onCreateEvent={store.createEvent} />;
       case 'drones':
@@ -75,6 +93,8 @@ export default function App() {
         return <AlertGenerator onCreateToken={store.createToken} />;
       case 'reports':
         return <Reports tokens={store.tokens} incidents={store.incidents} drones={store.drones} />;
+      case 'drone_feed':
+        return <DroneFeed drones={store.drones} selectedDroneId={store.selectedDroneId} onSelectDrone={store.setSelectedDroneId} />;
       default:
         return null;
     }
@@ -120,12 +140,14 @@ export default function App() {
             <Menu className="w-4 h-4" />
           </button>
           <div className="flex-1">
-            <Header
+             <Header
               isDark={store.isDark}
               onToggleTheme={() => store.setIsDark(!store.isDark)}
               notifications={store.notifications}
               onNotificationClick={store.dismissNotification}
               unreadCount={store.notifications.length}
+              currentRole={store.currentRole}
+              onRoleChange={store.setCurrentRole}
             />
           </div>
         </div>
@@ -150,7 +172,12 @@ export default function App() {
           {/* Right intelligence panel — desktop only, contextual pages */}
           {showIntelPanel && (
             <div className="hidden lg:block h-full">
-              <IntelPanel selectedNode={store.selectedNode} drones={store.drones} predictionWindow={store.predictionWindow} />
+              <IntelPanel
+                selectedNode={store.selectedNode}
+                selectedLink={store.selectedLink}
+                drones={store.drones}
+                predictionWindow={store.predictionWindow}
+              />
             </div>
           )}
         </div>

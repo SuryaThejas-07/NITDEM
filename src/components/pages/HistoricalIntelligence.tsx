@@ -87,8 +87,7 @@ export default function HistoricalIntelligence({ tokens }: HistoryProps) {
             style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}
             onClick={e => { if (e.target === e.currentTarget) setSelected(null); }}>
             <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-lg rounded-2xl border border-white/[0.08] overflow-hidden"
-              style={{ background: '#0F1117' }}>
+              className="w-full max-w-lg rounded-2xl border border-white/[0.08] overflow-hidden bg-[#0F1117]">
               <div className="h-px bg-gradient-to-r from-transparent via-orange-500 to-transparent" />
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
