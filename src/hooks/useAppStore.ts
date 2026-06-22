@@ -681,7 +681,6 @@ export function useAppStore() {
       tokenId: token.id,
       status: 'pending',
     };
-    
     setIncidents(prev => {
       const next = [incident, ...prev];
       if (isAutoDispatch && data.lat && data.lng) {
@@ -697,8 +696,15 @@ export function useAppStore() {
       return next;
     });
 
+    addNotification({
+      type: data.priority === 'critical' ? 'critical' : data.priority === 'high' ? 'warning' : 'info',
+      title: `NEW INCIDENT — ${data.type.toUpperCase()}`,
+      message: `${data.priority.toUpperCase()} priority at ${data.location}. ${data.description?.slice(0, 80) || ''}`,
+      tokenId: token.id,
+    });
+
     return incident;
-  }, [createToken, isAutoDispatch, drones, dispatchDrone]);
+  }, [createToken, isAutoDispatch, drones, dispatchDrone, addNotification]);
 
   const updateIncidentStatus = useCallback((id: string, status: Incident['status']) => {
     setIncidents(prev => prev.map(inc => {
@@ -733,6 +739,14 @@ export function useAppStore() {
       return inc;
     }));
   }, [addNotification]);
+
+  const updateIncident = useCallback((id: string, updates: Partial<Incident>) => {
+    setIncidents(prev => prev.map(inc => inc.id === id ? { ...inc, ...updates } : inc));
+  }, []);
+
+  const updateEvent = useCallback((id: string, updates: Partial<PlannedEvent>) => {
+    setEvents(prev => prev.map(ev => ev.id === id ? { ...ev, ...updates } : ev));
+  }, []);
 
   const updateDroneRoute = useCallback((droneId: string, nodeIds: string[]) => {
     setDrones(prev => prev.map(d => {
@@ -861,6 +875,8 @@ export function useAppStore() {
     selectedDroneId, setSelectedDroneId,
     currentRole, setCurrentRole,
     updateIncidentStatus,
+    updateIncident,
+    updateEvent,
     updateDroneRoute,
     isDark, setIsDark,
     nodes,

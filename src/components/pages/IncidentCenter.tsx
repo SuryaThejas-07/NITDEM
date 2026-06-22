@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, Plus, X, CheckCircle, Clock, Hash, MapPin, Crosshair, List, Sparkles } from 'lucide-react';
+import { AlertTriangle, Plus, X, CheckCircle, Clock, Hash, MapPin, Crosshair, List, Sparkles, Edit2, Save } from 'lucide-react';
 import type { Incident, UserRole, TrafficNode } from '../../types';
 import { formatRelative, priorityBadgeClass } from '../../utils';
 import LocationPicker from '../map/LocationPicker';
+import MiniMapPreview from '../map/MiniMapPreview';
 
 interface IncidentCenterProps {
   incidents: Incident[];
@@ -13,6 +14,7 @@ interface IncidentCenterProps {
   enableGcsIncidents: boolean;
   setEnableGcsIncidents: (val: boolean) => void;
   nodes: TrafficNode[];
+  onUpdateIncident: (id: string, updates: Partial<Incident>) => void;
 }
 
 const junctionMap: Record<string, string> = {
@@ -37,6 +39,8 @@ interface SelectedLocation {
   affectedRoads: string[];
 }
 
+const PRIORITY_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+
 export default function IncidentCenter({
   incidents,
   onLogIncident,
@@ -44,7 +48,8 @@ export default function IncidentCenter({
   onUpdateIncidentStatus,
   enableGcsIncidents,
   setEnableGcsIncidents,
-  nodes
+  nodes,
+  onUpdateIncident
 }: IncidentCenterProps) {
   const [viewMode, setViewMode] = useState<'feed' | 'rankings'>('feed');
   const [showModal, setShowModal] = useState(false);
@@ -53,6 +58,11 @@ export default function IncidentCenter({
   const [selectedLoc, setSelectedLoc] = useState<SelectedLocation | null>(null);
   const [submitted, setSubmitted] = useState<string | null>(null);
   const [roleWarningId, setRoleWarningId] = useState<string | null>(null);
+  const [viewingIncident, setViewingIncident] = useState<Incident | null>(null);
+  const [isEditingView, setIsEditingView] = useState(false);
+  const [editForm, setEditForm] = useState<{ type: string; location: string; priority: Incident['priority']; description: string }>({ type: '', location: '', priority: 'high', description: '' });
+  const [editPicker, setEditPicker] = useState(false);
+  const [editLoc, setEditLoc] = useState<SelectedLocation | null>(null);
 
   const alertRoleWarning = (id: string) => {
     setRoleWarningId(id);
@@ -80,7 +90,45 @@ export default function IncidentCenter({
     }, 2500);
   };
 
-  const allIncidents = incidents;
+  const allIncidents = [...incidents].sort((a, b) => {
+    const pa = PRIORITY_ORDER[a.priority] ?? 99;
+    const pb = PRIORITY_ORDER[b.priority] ?? 99;
+    if (pa !== pb) return pa - pb;
+    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+  });
+
+  const openViewer = (inc: Incident) => {
+    setViewingIncident(inc);
+    setIsEditingView(false);
+    setEditForm({ type: inc.type, location: inc.location, priority: inc.priority, description: inc.description });
+    setEditLoc(inc.lat && inc.lng ? { lat: inc.lat, lng: inc.lng, nearestJunction: inc.nearestJunction || '', affectedRoads: inc.affectedRoads || [] } : null);
+  };
+
+  const saveEdits = () => {
+    if (!viewingIncident) return;
+    onUpdateIncident(viewingIncident.id, {
+      type: editForm.type,
+      location: editForm.location,
+      priority: editForm.priority,
+      description: editForm.description,
+      lat: editLoc?.lat ?? viewingIncident.lat,
+      lng: editLoc?.lng ?? viewingIncident.lng,
+      nearestJunction: editLoc?.nearestJunction ?? viewingIncident.nearestJunction,
+      affectedRoads: editLoc?.affectedRoads ?? viewingIncident.affectedRoads,
+    });
+    setViewingIncident({
+      ...viewingIncident,
+      type: editForm.type,
+      location: editForm.location,
+      priority: editForm.priority,
+      description: editForm.description,
+      lat: editLoc?.lat ?? viewingIncident.lat,
+      lng: editLoc?.lng ?? viewingIncident.lng,
+      nearestJunction: editLoc?.nearestJunction ?? viewingIncident.nearestJunction,
+      affectedRoads: editLoc?.affectedRoads ?? viewingIncident.affectedRoads,
+    });
+    setIsEditingView(false);
+  };
 
   const getAiRecommendation = (type: string, priority: Incident['priority'], location: string) => {
     if (priority === 'critical') {
@@ -233,7 +281,8 @@ export default function IncidentCenter({
               allIncidents.map((incident, i) => (
                 <motion.div key={incident.id}
                   initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
-                  className={`bg-[#0F1117] border rounded-xl p-4 flex items-start gap-4 transition-all ${
+                  onClick={() => openViewer(incident)}
+                  className={`bg-[#0F1117] border rounded-xl p-4 flex items-start gap-4 transition-all cursor-pointer hover:border-orange-500/40 ${
                     incident.status === 'declined' ? 'opacity-40 border-gray-800' :
                     incident.status === 'active' ? 'border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.05)]' :
                     incident.status === 'pending' ? 'border-yellow-500/20' : 'border-white/[0.06]'
@@ -280,7 +329,8 @@ export default function IncidentCenter({
                         </span>
                         <div className="flex gap-2">
                           <button
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               if (currentRole === 'supervisor') {
                                 onUpdateIncidentStatus(incident.id, 'active');
                               } else {
@@ -296,7 +346,8 @@ export default function IncidentCenter({
                             Accept
                           </button>
                           <button
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               if (currentRole === 'supervisor') {
                                 onUpdateIncidentStatus(incident.id, 'declined');
                               } else {
@@ -323,6 +374,7 @@ export default function IncidentCenter({
                     )}
                   </div>
                 </motion.div>
+
               ))
             )}
           </div>
@@ -556,6 +608,140 @@ export default function IncidentCenter({
             onClose={() => setShowPicker(false)}
             onConfirm={(data) => setSelectedLoc(data)}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Edit-location picker */}
+      <AnimatePresence>
+        {editPicker && (
+          <LocationPicker
+            initialLat={editLoc?.lat ?? viewingIncident?.lat}
+            initialLng={editLoc?.lng ?? viewingIncident?.lng}
+            onClose={() => setEditPicker(false)}
+            onConfirm={(data) => setEditLoc(data)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* View / Edit incident modal */}
+      <AnimatePresence>
+        {viewingIncident && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}
+            onClick={e => { if (e.target === e.currentTarget) setViewingIncident(null); }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
+              className="w-full max-w-lg rounded-2xl border border-white/[0.08] overflow-hidden bg-[#0F1117] max-h-[92vh] overflow-y-auto"
+            >
+              <div className="h-px bg-gradient-to-r from-transparent via-orange-500 to-transparent" />
+              <div className="p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-base font-bold text-white">{isEditingView ? 'Edit Incident' : 'Incident Details'}</div>
+                    <div className="text-[10px] text-gray-500 font-mono">Token {viewingIncident.tokenId} · {formatRelative(viewingIncident.timestamp)}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {!isEditingView && (
+                      <button onClick={() => setIsEditingView(true)} className="text-orange-400 hover:text-orange-300 text-[10px] font-mono flex items-center gap-1 border border-orange-500/30 rounded px-2 py-1">
+                        <Edit2 className="w-3 h-3" /> Edit
+                      </button>
+                    )}
+                    <button onClick={() => setViewingIncident(null)} className="text-gray-500 hover:text-white">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Map preview */}
+                {(editLoc?.lat || viewingIncident.lat) && (editLoc?.lng || viewingIncident.lng) ? (
+                  <MiniMapPreview
+                    lat={editLoc?.lat ?? viewingIncident.lat!}
+                    lng={editLoc?.lng ?? viewingIncident.lng!}
+                    label={editLoc?.nearestJunction || viewingIncident.nearestJunction || viewingIncident.location}
+                    color={viewingIncident.priority === 'critical' ? '#EF4444' : viewingIncident.priority === 'high' ? '#F97316' : '#EAB308'}
+                  />
+                ) : (
+                  <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4 text-center text-[11px] text-gray-500 font-mono">
+                    No precise location pinned · {viewingIncident.location}
+                  </div>
+                )}
+
+                {!isEditingView ? (
+                  <div className="space-y-2 text-[11px] font-mono">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-white font-semibold">{viewingIncident.type}</span>
+                      <span className={`text-[9px] px-2 py-0.5 rounded border ${priorityBadgeClass(viewingIncident.priority)}`}>{viewingIncident.priority.toUpperCase()}</span>
+                      <span className="text-[9px] text-gray-400 bg-white/[0.04] border border-white/[0.06] rounded px-2 py-0.5">{viewingIncident.status.toUpperCase()}</span>
+                    </div>
+                    <div className="text-gray-300">{viewingIncident.description}</div>
+                    <div className="flex items-center gap-3 text-gray-500 flex-wrap">
+                      <span>📍 {viewingIncident.location}</span>
+                      {viewingIncident.lat && viewingIncident.lng && (
+                        <span className="text-cyan-400">{viewingIncident.lat.toFixed(4)}°N, {viewingIncident.lng.toFixed(4)}°E</span>
+                      )}
+                      {viewingIncident.nearestJunction && <span className="text-orange-400">Near: {viewingIncident.nearestJunction}</span>}
+                    </div>
+                    {viewingIncident.affectedRoads && viewingIncident.affectedRoads.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {viewingIncident.affectedRoads.map(r => (
+                          <span key={r} className="text-[9px] bg-orange-500/10 text-orange-300 border border-orange-500/20 rounded px-1.5 py-0.5">{r}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[9px] font-mono text-gray-500 tracking-widest mb-1.5 uppercase">Type</label>
+                      <select value={editForm.type} onChange={e => setEditForm(p => ({ ...p, type: e.target.value }))}
+                        className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500/50">
+                        {INCIDENT_TYPES.map(o => <option key={o} value={o} className="bg-[#151820]">{o}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-mono text-gray-500 tracking-widest mb-1.5 uppercase">Location</label>
+                      <select value={editForm.location} onChange={e => setEditForm(p => ({ ...p, location: e.target.value }))}
+                        className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500/50">
+                        {[editForm.location, ...LOCATIONS.filter(l => l !== editForm.location)].map(o => <option key={o} value={o} className="bg-[#151820]">{o}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-mono text-gray-500 tracking-widest mb-1.5 uppercase">Priority</label>
+                      <select value={editForm.priority} onChange={e => setEditForm(p => ({ ...p, priority: e.target.value as any }))}
+                        className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500/50">
+                        {['low', 'medium', 'high', 'critical'].map(o => <option key={o} value={o} className="bg-[#151820]">{o}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-mono text-gray-500 tracking-widest mb-1.5 uppercase">Description</label>
+                      <textarea value={editForm.description} onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))}
+                        rows={3}
+                        className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500/50 resize-none" />
+                    </div>
+                    <button type="button" onClick={() => setEditPicker(true)}
+                      className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-dashed border-orange-500/30 text-orange-400 text-xs font-mono hover:bg-orange-500/10">
+                      <Crosshair className="w-3.5 h-3.5" /> {editLoc || viewingIncident.lat ? 'Change Location on Map' : 'Pick Location on Map'}
+                    </button>
+
+                    <div className="flex gap-2 pt-2">
+                      <button type="button" onClick={() => setIsEditingView(false)}
+                        className="flex-1 py-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-gray-300 text-xs font-mono uppercase hover:bg-white/[0.08]">
+                        Cancel
+                      </button>
+                      <button type="button" onClick={saveEdits}
+                        className="flex-1 py-2 rounded-lg text-xs font-mono uppercase font-bold flex items-center justify-center gap-1.5"
+                        style={{ background: 'linear-gradient(135deg, #F97316, #EA580C)', color: 'white' }}>
+                        <Save className="w-3.5 h-3.5" /> Save Changes
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

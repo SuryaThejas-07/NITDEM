@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Bell, Sun, Moon, User, Wifi, Activity } from 'lucide-react';
 import { format } from 'date-fns';
@@ -17,14 +17,26 @@ interface HeaderProps {
 export default function Header({ isDark, onToggleTheme, notifications, unreadCount, currentRole, onRoleChange }: HeaderProps) {
   const [time, setTime] = useState(new Date());
   const [showNotifs, setShowNotifs] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const t = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
 
+  useEffect(() => {
+    if (!showNotifs) return;
+    const handleClick = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setShowNotifs(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showNotifs]);
+
   return (
-    <header className="h-14 border-b border-white/[0.06] flex items-center justify-between pl-12 pr-2 md:px-4 shrink-0 relative z-20 gap-2 bg-[#0F1117]">
+    <header className="h-14 border-b border-white/[0.06] flex items-center justify-between pl-12 pr-2 md:px-4 shrink-0 relative z-[100] gap-2 bg-[#0F1117]">
       
       {/* Left: Status indicators */}
       <div className="flex items-center gap-2 md:gap-4 min-w-0">
@@ -63,7 +75,7 @@ export default function Header({ isDark, onToggleTheme, notifications, unreadCou
           {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
         </button>
 
-        <div className="relative">
+        <div ref={notifRef} className="relative">
           <button onClick={() => setShowNotifs(!showNotifs)}
             className="w-8 h-8 rounded-lg border border-white/[0.08] flex items-center justify-center text-gray-400 hover:text-white hover:border-white/[0.2] transition-all relative">
             <Bell className="w-3.5 h-3.5" />
