@@ -8,6 +8,7 @@ import IntelPanel from './components/layout/IntelPanel';
 import ToastStack from './components/layout/ToastStack';
 import MobileDrawer from './components/layout/MobileDrawer';
 import CommandMap from './components/map/CommandMap';
+import IncidentAlerts from './components/map/IncidentAlerts';
 import Dashboard from './components/pages/Dashboard';
 import AIAnalytics from './components/pages/AIAnalytics';
 import TrafficForecasting from './components/pages/TrafficForecasting';
@@ -53,6 +54,7 @@ export default function App() {
         return <Dashboard drones={store.drones} incidents={store.incidents} />;
       case 'map':
         return (
+          <div className="relative h-full w-full">
           <CommandMap
             selectedNode={store.selectedNode}
             onNodeSelect={store.setSelectedNode}
@@ -69,6 +71,8 @@ export default function App() {
             onUpdateDroneRoute={store.updateDroneRoute}
             isDark={store.isDark}
           />
+          <IncidentAlerts incidents={store.incidents} tokens={store.tokens} />
+          </div>
         );
       case 'analytics':
         return <AIAnalytics />;
@@ -178,6 +182,7 @@ export default function App() {
                 selectedLink={store.selectedLink}
                 drones={store.drones}
                 predictionWindow={store.predictionWindow}
+                incidents={store.incidents}
                 onClearSelection={() => {
                   store.setSelectedNode(null);
                   store.setSelectedLink(null);

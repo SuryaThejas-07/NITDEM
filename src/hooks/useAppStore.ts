@@ -229,8 +229,14 @@ export function useAppStore() {
       status: 'pending',
     };
     setIncidents(prev => [incident, ...prev]);
+    addNotification({
+      type: data.priority === 'critical' ? 'critical' : data.priority === 'high' ? 'warning' : 'info',
+      title: `NEW INCIDENT — ${data.type.toUpperCase()}`,
+      message: `${data.priority.toUpperCase()} priority at ${data.location}. ${data.description?.slice(0, 80) || ''}`,
+      tokenId: token.id,
+    });
     return incident;
-  }, [createToken]);
+  }, [createToken, addNotification]);
 
   const updateIncidentStatus = useCallback((id: string, status: Incident['status']) => {
     setIncidents(prev => prev.map(inc => {

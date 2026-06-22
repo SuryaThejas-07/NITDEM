@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Brain, Zap, Plane, AlertTriangle, Thermometer, Droplets, CloudRain, MapPin, TrendingUp, CheckCircle2, Sparkles, Activity, ArrowLeft } from 'lucide-react';
-import type { TrafficNode, Drone, PredictionWindow, RoadLinkMetadata } from '../../types';
+import { Brain, Zap, Plane, AlertTriangle, Thermometer, Droplets, CloudRain, MapPin, TrendingUp, CheckCircle2, Sparkles, Activity, ArrowLeft, ChevronDown, ChevronUp, Siren, Clock } from 'lucide-react';
+import type { TrafficNode, Drone, PredictionWindow, RoadLinkMetadata, Incident } from '../../types';
 import { 
   AI_RECOMMENDATIONS, 
   WEATHER, 
@@ -20,11 +20,13 @@ interface IntelPanelProps {
   selectedLink: string | null;
   drones: Drone[];
   predictionWindow: PredictionWindow;
+  incidents?: Incident[];
   onClearSelection?: () => void;
 }
 
-export default function IntelPanel({ selectedNode, selectedLink, drones, predictionWindow, onClearSelection }: IntelPanelProps) {
+export default function IntelPanel({ selectedNode, selectedLink, drones, predictionWindow, incidents = [], onClearSelection }: IntelPanelProps) {
   const [activeTab, setActiveTab] = useState<'live' | 'forecast20'>('live');
+  const [expandedIncident, setExpandedIncident] = useState<string | null>(null);
   const recs = selectedNode ? (AI_RECOMMENDATIONS[selectedNode.id] || []) : [];
   const nearbyDrones = selectedNode
     ? drones.filter(d => d.location === selectedNode.name || d.targetNodeId === selectedNode.id)
@@ -399,6 +401,87 @@ export default function IntelPanel({ selectedNode, selectedLink, drones, predict
         </AnimatePresence>
         )}
 
+        {/* Live Incidents */}
+        {activeTab === 'live' && incidents.length > 0 && (
+          <div className="rounded-lg border border-red-500/20 overflow-hidden">
+            <div className="bg-red-500/10 px-3 py-1.5 flex items-center gap-2">
+              <Siren className="w-3 h-3 text-red-400" />
+              <span className="text-[10px] font-mono text-red-400 tracking-wider">LIVE INCIDENTS</span>
+              <span className="ml-auto text-[9px] font-mono text-red-300">{incidents.length}</span>
+            </div>
+            <div className="p-2 space-y-1.5 max-h-72 overflow-y-auto">
+              {[...incidents]
+                .sort((a, b) => {
+                  const order = { critical: 0, high: 1, medium: 2, low: 3 } as const;
+                  return order[a.priority] - order[b.priority];
+                })
+                .slice(0, 8)
+                .map((inc) => {
+                  const isOpen = expandedIncident === inc.id;
+                  const priColor =
+                    inc.priority === 'critical' ? '#EF4444'
+                    : inc.priority === 'high' ? '#F97316'
+                    : inc.priority === 'medium' ? '#EAB308' : '#22C55E';
+                  const measures = suggestedMeasures(inc);
+                  return (
+                    <div key={inc.id} className="bg-white/[0.03] rounded border border-white/[0.05] overflow-hidden">
+                      <button
+                        onClick={() => setExpandedIncident(isOpen ? null : inc.id)}
+                        className="w-full px-2 py-1.5 flex items-center gap-2 hover:bg-white/[0.04] transition-colors text-left"
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: priColor }} />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[10px] font-semibold text-white truncate">{inc.type}</div>
+                          <div className="text-[9px] text-gray-500 font-mono truncate">{inc.location}</div>
+                        </div>
+                        <span className="text-[8px] font-mono uppercase shrink-0" style={{ color: priColor }}>
+                          {inc.priority}
+                        </span>
+                        {isOpen ? <ChevronUp className="w-3 h-3 text-gray-500" /> : <ChevronDown className="w-3 h-3 text-gray-500" />}
+                      </button>
+                      {isOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          className="px-2 pb-2 border-t border-white/[0.05] space-y-1.5"
+                        >
+                          <div className="flex items-center gap-1.5 pt-1.5 text-[9px] font-mono text-gray-500">
+                            <Clock className="w-2.5 h-2.5" />
+                            {new Date(inc.timestamp).toLocaleTimeString()}
+                            <span className="ml-auto text-orange-400">{inc.tokenId}</span>
+                          </div>
+                          {inc.description && (
+                            <div className="text-[9px] text-gray-300 leading-relaxed">{inc.description}</div>
+                          )}
+                          <div className="rounded border border-orange-500/20 overflow-hidden">
+                            <div className="bg-orange-500/10 px-2 py-1 flex items-center gap-1.5">
+                              <Brain className="w-2.5 h-2.5 text-orange-400" />
+                              <span className="text-[9px] font-mono text-orange-400 tracking-wider">SUGGESTED MEASURES</span>
+                            </div>
+                            <div className="p-1.5 space-y-1">
+                              {measures.map((m: string, i: number) => (
+                                <div key={i} className="flex items-start gap-1.5">
+                                  <Zap className="w-2.5 h-2.5 text-orange-400 shrink-0 mt-0.5" />
+                                  <span className="text-[9px] text-gray-300 leading-snug">{m}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 text-[8px] font-mono">
+                            <span className="text-gray-500">STATUS:</span>
+                            <span className="uppercase" style={{ color: inc.status === 'active' ? '#22C55E' : inc.status === 'pending' ? '#EAB308' : '#9CA3AF' }}>
+                              {inc.status}
+                            </span>
+                          </div>
+                        </motion.div>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        )}
+
         {/* Weather */}
         {activeTab === 'live' && (
         <div className="rounded-lg border border-white/[0.06] overflow-hidden">
@@ -449,6 +532,45 @@ export default function IntelPanel({ selectedNode, selectedLink, drones, predict
       </div>
     </div>
   );
+}
+
+function suggestedMeasures(inc: Incident): string[] {
+  const t = inc.type.toLowerCase();
+  const measures: string[] = [];
+  if (t.includes('accident') || t.includes('crash')) {
+    measures.push('Dispatch nearest patrol unit and ambulance to scene');
+    measures.push('Divert through-traffic via alternate corridor');
+    measures.push('Deploy nearest drone for live overhead feed');
+  } else if (t.includes('fire')) {
+    measures.push('Alert fire services and clear access lanes');
+    measures.push('Evacuate 200m radius; halt cross-traffic');
+    measures.push('Activate emergency green corridor to nearest hospital');
+  } else if (t.includes('block') || t.includes('road block') || t.includes('obstruction')) {
+    measures.push('Send maintenance crew to clear obstruction');
+    measures.push('Reroute via parallel link; update GPS advisories');
+  } else if (t.includes('breakdown') || t.includes('vehicle')) {
+    measures.push('Dispatch tow vehicle; lane closure advisory');
+    measures.push('Adjust signal timing on upstream junction');
+  } else if (t.includes('crowd') || t.includes('gathering') || t.includes('protest')) {
+    measures.push('Deploy crowd-control officers to the location');
+    measures.push('Pre-emptive diversion at upstream junctions');
+    measures.push('Issue public advisory via SMS broadcast');
+  } else if (t.includes('parking') || t.includes('illegal')) {
+    measures.push('Dispatch traffic warden for clearance / towing');
+    measures.push('Issue penalty token via enforcement unit');
+  } else if (t.includes('flood') || t.includes('water')) {
+    measures.push('Close affected stretch; barricade and signage');
+    measures.push('Activate alternate route plan; notify drainage team');
+  } else {
+    measures.push('Acknowledge and assign nearest field officer');
+    measures.push('Monitor via drone feed; review every 5 min');
+  }
+  if (inc.priority === 'critical') {
+    measures.unshift('CRITICAL: Trigger Twilio + SendGrid emergency broadcast');
+  } else if (inc.priority === 'high') {
+    measures.unshift('HIGH: Notify supervisor on duty immediately');
+  }
+  return measures.slice(0, 4);
 }
 
 function Forecast20Panel({ selectedNode }: { selectedNode: TrafficNode | null }) {
