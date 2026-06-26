@@ -149,14 +149,30 @@ function syncI1a() {
         };
 
         fs.writeFileSync(tmpJson, JSON.stringify(outputData));
-        fs.renameSync(tmpJson, finalJson);
-        fs.renameSync(tmpI1a, finalI1a);
+        
+        let jsonRenamed = false;
+        try {
+          fs.renameSync(tmpJson, finalJson);
+          jsonRenamed = true;
+        } catch (jsonErr) {
+          console.error(`[${new Date().toLocaleTimeString()}] Error releasing I1a.json:`, jsonErr.message);
+          try { fs.unlinkSync(tmpJson); } catch (e) {}
+        }
 
-        prevI1aHash = newHash;
-        console.log(`[${new Date().toLocaleTimeString()}] I1a.json generated successfully (${(fs.statSync(finalJson).size / (1024 * 1024)).toFixed(2)} MB).`);
+        try {
+          fs.renameSync(tmpI1a, finalI1a);
+        } catch (xlsxErr) {
+          try { fs.unlinkSync(tmpI1a); } catch (e) {}
+        }
+
+        if (jsonRenamed) {
+          prevI1aHash = newHash;
+          console.log(`[${new Date().toLocaleTimeString()}] I1a.json generated successfully (${(fs.statSync(finalJson).size / (1024 * 1024)).toFixed(2)} MB).`);
+        }
       } catch (parseErr) {
         console.error(`[${new Date().toLocaleTimeString()}] Error parsing I1a.xlsx:`, parseErr.message);
         try { fs.unlinkSync(tmpI1a); } catch (e) {}
+        try { fs.unlinkSync(tmpJson); } catch (e) {}
       }
       resolve();
     });
@@ -240,14 +256,30 @@ function syncO1() {
         });
 
         fs.writeFileSync(tmpJson, JSON.stringify(mapped));
-        fs.renameSync(tmpJson, finalJson);
-        fs.renameSync(tmpO1, finalO1);
+        
+        let jsonRenamed = false;
+        try {
+          fs.renameSync(tmpJson, finalJson);
+          jsonRenamed = true;
+        } catch (jsonErr) {
+          console.error(`[${new Date().toLocaleTimeString()}] Error releasing O1.json:`, jsonErr.message);
+          try { fs.unlinkSync(tmpJson); } catch (e) {}
+        }
 
-        prevO1Hash = newHash;
-        console.log(`[${new Date().toLocaleTimeString()}] O1.json generated successfully.`);
+        try {
+          fs.renameSync(tmpO1, finalO1);
+        } catch (xlsxErr) {
+          try { fs.unlinkSync(tmpO1); } catch (e) {}
+        }
+
+        if (jsonRenamed) {
+          prevO1Hash = newHash;
+          console.log(`[${new Date().toLocaleTimeString()}] O1.json generated successfully.`);
+        }
       } catch (parseErr) {
         console.error(`[${new Date().toLocaleTimeString()}] Error parsing O1.xlsx:`, parseErr.message);
         try { fs.unlinkSync(tmpO1); } catch (e) {}
+        try { fs.unlinkSync(tmpJson); } catch (e) {}
       }
       resolve();
     });
@@ -352,14 +384,30 @@ function syncI1b() {
         };
 
         fs.writeFileSync(tmpJson, JSON.stringify(outputData));
-        fs.renameSync(tmpJson, finalJson);
-        fs.renameSync(tmpI1b, finalI1b);
+        
+        let jsonRenamed = false;
+        try {
+          fs.renameSync(tmpJson, finalJson);
+          jsonRenamed = true;
+        } catch (jsonErr) {
+          console.error(`[${new Date().toLocaleTimeString()}] Error releasing I1b.json:`, jsonErr.message);
+          try { fs.unlinkSync(tmpJson); } catch (e) {}
+        }
 
-        prevI1bHash = newHash;
-        console.log(`[${new Date().toLocaleTimeString()}] I1b.json generated successfully (${(fs.statSync(finalJson).size / (1024 * 1024)).toFixed(2)} MB).`);
+        try {
+          fs.renameSync(tmpI1b, finalI1b);
+        } catch (xlsxErr) {
+          try { fs.unlinkSync(tmpI1b); } catch (e) {}
+        }
+
+        if (jsonRenamed) {
+          prevI1bHash = newHash;
+          console.log(`[${new Date().toLocaleTimeString()}] I1b.json generated successfully (${(fs.statSync(finalJson).size / (1024 * 1024)).toFixed(2)} MB).`);
+        }
       } catch (parseErr) {
         console.error(`[${new Date().toLocaleTimeString()}] Error parsing I1b.xlsx:`, parseErr.message);
         try { fs.unlinkSync(tmpI1b); } catch (e) {}
+        try { fs.unlinkSync(tmpJson); } catch (e) {}
       }
       resolve();
     });
@@ -438,14 +486,30 @@ function syncI2() {
         });
 
         fs.writeFileSync(tmpJson, JSON.stringify(mapped));
-        fs.renameSync(tmpJson, finalJson);
-        fs.renameSync(tmpI2, finalI2);
+        
+        let jsonRenamed = false;
+        try {
+          fs.renameSync(tmpJson, finalJson);
+          jsonRenamed = true;
+        } catch (jsonErr) {
+          console.error(`[${new Date().toLocaleTimeString()}] Error releasing I2.json:`, jsonErr.message);
+          try { fs.unlinkSync(tmpJson); } catch (e) {}
+        }
 
-        prevI2Hash = newHash;
-        console.log(`[${new Date().toLocaleTimeString()}] I2.json generated successfully.`);
+        try {
+          fs.renameSync(tmpI2, finalI2);
+        } catch (xlsxErr) {
+          try { fs.unlinkSync(tmpI2); } catch (e) {}
+        }
+
+        if (jsonRenamed) {
+          prevI2Hash = newHash;
+          console.log(`[${new Date().toLocaleTimeString()}] I2.json generated successfully.`);
+        }
       } catch (parseErr) {
         console.error(`[${new Date().toLocaleTimeString()}] Error parsing I2.xlsx:`, parseErr.message);
         try { fs.unlinkSync(tmpI2); } catch (e) {}
+        try { fs.unlinkSync(tmpJson); } catch (e) {}
       }
       resolve();
     });

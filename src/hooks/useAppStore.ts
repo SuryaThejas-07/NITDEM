@@ -205,7 +205,7 @@ export function useAppStore() {
         })
         .then(data => {
           if (data) {
-            setCoordsByTimestamp(data.coordsByTimestamp || data.coordsByTimestamp || {});
+            setCoordsByTimestamp(data.coordsByTimestamp || {});
             setUniqueTimestamps(data.uniqueTimestamps || []);
             setLinkCoordsLookup(data.linkCoords || {});
           }
