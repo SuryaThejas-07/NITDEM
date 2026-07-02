@@ -387,12 +387,11 @@ export default function IntelPanel({
                   {isPredicting && prediction ? (
                     <>
                       {[
-                        { label: 'Predicted Density', value: `${prediction.density}%`, color: prediction.density > 80 ? '#EF4444' : prediction.density > 60 ? '#F97316' : '#22C55E' },
-                        { label: 'Predicted Vehicles', value: prediction.vehicleCount.toLocaleString(), color: '#F97316' },
+                        { label: 'Predicted Density', value: `${prediction.density}%`, color: prediction.density > 80 ? '#EF4444' : prediction.density > 60 ? '#F97316' : '#22C55E', span: 'col-span-2' },
                         { label: 'Predicted Speed', value: `${prediction.avgSpeed} km/h`, color: '#3B82F6' },
                         { label: 'Confidence', value: `${prediction.confidence}%`, color: '#A855F7' },
-                      ].map(({ label, value, color }) => (
-                        <div key={label} className="bg-white/[0.03] rounded-lg p-2 border border-white/[0.05]">
+                      ].map(({ label, value, color, span }) => (
+                        <div key={label} className={`bg-white/[0.03] rounded-lg p-2 border border-white/[0.05] ${span || ''}`}>
                           <div className="text-[10px] text-gray-400 font-sans font-bold mb-1">{label}</div>
                           <div className="text-base font-extrabold font-mono" style={{ color }}>{value}</div>
                         </div>
@@ -407,12 +406,11 @@ export default function IntelPanel({
                   ) : (
                     <>
                       {[
-                        { label: 'Current Density', value: `${selectedNode.density}%`, color: selectedNode.density > 80 ? '#EF4444' : selectedNode.density > 60 ? '#F97316' : '#22C55E' },
-                        { label: 'Current Vehicles', value: selectedNode.vehicleCount.toLocaleString(), color: '#F97316' },
+                        { label: 'Current Density', value: `${selectedNode.density}%`, color: selectedNode.density > 80 ? '#EF4444' : selectedNode.density > 60 ? '#F97316' : '#22C55E', span: 'col-span-2' },
                         { label: 'Current Speed', value: `${selectedNode.avgSpeed} km/h`, color: '#3B82F6' },
                         { label: 'Incidents', value: selectedNode.incidentCount.toString(), color: selectedNode.incidentCount > 0 ? '#EF4444' : '#22C55E' },
-                      ].map(({ label, value, color }) => (
-                        <div key={label} className="bg-white/[0.03] rounded-lg p-2 border border-white/[0.05]">
+                      ].map(({ label, value, color, span }) => (
+                        <div key={label} className={`bg-white/[0.03] rounded-lg p-2 border border-white/[0.05] ${span || ''}`}>
                           <div className="text-[10px] text-gray-400 font-sans font-bold mb-1">{label}</div>
                           <div className="text-base font-extrabold font-mono" style={{ color }}>{value}</div>
                         </div>
@@ -729,12 +727,11 @@ export default function IntelPanel({
                 ) : (
                   <div className="grid grid-cols-2 gap-2">
                     {[
-                      { label: 'Avg Density', value: `${linkStats.avgDensity}%`, color: linkStats.avgDensity > 80 ? '#EF4444' : linkStats.avgDensity > 60 ? '#F97316' : '#22C55E' },
+                      { label: 'Avg Density', value: `${linkStats.avgDensity}%`, color: linkStats.avgDensity > 80 ? '#EF4444' : linkStats.avgDensity > 60 ? '#F97316' : '#22C55E', span: 'col-span-2' },
                       { label: 'Est. Travel Time', value: `${linkStats.travelMins} min`, color: linkStats.worseStatus === 'critical' ? '#EF4444' : linkStats.worseStatus === 'heavy' ? '#F97316' : '#22C55E' },
                       { label: 'Avg Speed', value: `${linkStats.avgSpeed} km/h`, color: '#3B82F6' },
-                      { label: 'Combined Volume', value: linkStats.totalVehicles.toLocaleString(), color: '#A855F7' },
-                    ].map(({ label, value, color }) => (
-                      <div key={label} className="bg-white/[0.03] rounded-lg p-2 border border-white/[0.05]">
+                    ].map(({ label, value, color, span }) => (
+                      <div key={label} className={`bg-white/[0.03] rounded-lg p-2 border border-white/[0.05] ${span || ''}`}>
                         <div className="text-[10px] text-gray-400 font-sans mb-1 font-bold">{label}</div>
                         <div className="text-base font-extrabold font-mono" style={{ color }}>{value}</div>
                       </div>

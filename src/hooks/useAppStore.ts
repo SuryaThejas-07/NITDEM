@@ -889,7 +889,8 @@ export function useAppStore() {
         addNotification({
           type: 'critical',
           title: `⚠️ TRAFFIC MEASURE REQUIRED: ${linkId}`,
-          message
+          message,
+          simulationTimeSec: bucketStartSec,
         });
       });
 
@@ -1264,6 +1265,19 @@ export function useAppStore() {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
+  const currentSimulationSec = useMemo(() => {
+    const parts = selectedTime.split(':').map(Number);
+    return (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
+  }, [selectedTime]);
+
+  const activeFilteredNotifications = useMemo(() => {
+    return notifications.filter(n => {
+      if (n.simulationTimeSec === undefined) return true;
+      const diff = currentSimulationSec - n.simulationTimeSec;
+      return diff >= 0 && diff <= 300; // past 5 minutes and present time
+    });
+  }, [notifications, currentSimulationSec]);
+
   return {
     isAuthenticated, setIsAuthenticated,
     currentPage, setCurrentPage,
@@ -1289,7 +1303,7 @@ export function useAppStore() {
     drones,
     tokens, setTokens,
     incidents,
-    notifications,
+    notifications: activeFilteredNotifications,
     sidebarOpen, setSidebarOpen,
     addNotification,
     createToken,

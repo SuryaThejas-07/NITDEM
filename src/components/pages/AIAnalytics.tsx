@@ -102,7 +102,7 @@ export default function AIAnalytics({
       {/* Actual vs Predicted chart */}
       <div className="bg-[#0F1117] border border-white/[0.06] rounded-xl p-4">
         <div className="text-sm font-semibold text-white mb-1">Actual vs Predicted Congestion (ST-GNN Model Validation)</div>
-        <div className="text-xs text-gray-500 font-sans mb-4">GCS Bucket CSV Log comparison: actual sensors vs predicted outcomes</div>
+        <div className="text-xs text-gray-500 font-sans mb-4">Excel Sheet Log comparison: actual sensors (I1a.xlsx) vs predicted outcomes (I2.xlsx & O1.xlsx)</div>
         <ResponsiveContainer width="100%" height={220}>
           <AreaChart data={chartData}>
             <defs>
@@ -120,8 +120,8 @@ export default function AIAnalytics({
             <YAxis tick={{ fontSize: 11, fill: '#9CA3AF', fontFamily: 'JetBrains Mono' }} domain={[0, 100]} />
             <Tooltip contentStyle={{ background: '#151820', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, fontSize: 13 }} />
             <Legend verticalAlign="top" height={36} iconSize={10} formatter={(value) => <span className="text-xs font-sans text-gray-400">{value}</span>} />
-            <Area type="monotone" dataKey="Actual" stroke="#F97316" strokeWidth={2} fill="url(#actGrad)" name="Actual Density (latest.csv)" />
-            <Area type="monotone" dataKey="Predicted" stroke="#22C55E" strokeWidth={2} fill="url(#predGrad)" name="Predicted Density (density_predictions_video.csv)" />
+            <Area type="monotone" dataKey="Actual" stroke="#F97316" strokeWidth={2} fill="url(#actGrad)" name="Actual Density (I1a.xlsx)" />
+            <Area type="monotone" dataKey="Predicted" stroke="#22C55E" strokeWidth={2} fill="url(#predGrad)" name="Predicted Density (I2.xlsx & O1.xlsx)" />
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -188,7 +188,7 @@ export default function AIAnalytics({
           <div className="bg-white/[0.02] border border-white/[0.04] rounded-lg p-3 space-y-2">
             <h3 className="text-xs font-bold text-orange-400 uppercase font-mono tracking-wider">Verified Model Inputs</h3>
             <p className="text-[11px] text-gray-400 leading-relaxed">
-              Real-time telemetry loaded dynamically from GCS bucket coordinates dataset:
+              Real-time telemetry loaded dynamically from I1a.xlsx and I2.xlsx datasets:
             </p>
             <div className="grid grid-cols-2 gap-1.5 font-mono text-[10px] text-gray-300">
               {['travel_time', 'speed', 'volume', 'queue_delay', 'veh_delay', 'stops', 'occupancy', 'queue_length', 'max_queue_len'].map(f => (

@@ -278,29 +278,37 @@ export default function Dashboard({
                       'stadium-mananchira': ['L5', 'L15'],
                     };
                     const linkIds = connectionToLinks[linkKey] || [];
-                    const affectedRoads = new Set<string>();
-                    linkIds.forEach((id: string) => {
-                      const affIds = getAffectedLinks(id);
-                      affIds.forEach((affId: string) => {
-                        const roadName = linkToRoadMap[affId]?.roadName;
-                        if (roadName) affectedRoads.add(roadName);
-                      });
-                    });
-                    
                     const roadName = ROAD_LINKS_METADATA[linkKey]?.name || linkKey;
-                    const uniqueAffectedNames = Array.from(affectedRoads);
 
                     return (
-                      <div key={linkKey} className="bg-white/[0.02] border border-white/[0.04] p-2.5 rounded-lg space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-white truncate max-w-[70%]">{roadName}</span>
+                      <div key={linkKey} className="bg-white/[0.02] border border-white/[0.04] p-3 rounded-lg space-y-2.5">
+                        {/* Cause section */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <span className="text-[8.5px] font-mono text-red-400 font-bold uppercase tracking-wider block">CONGESTION CAUSE LINK</span>
+                            <span className="text-xs font-bold text-white truncate block">
+                              {roadName} <span className="text-[9px] font-mono text-orange-400 font-semibold bg-white/[0.05] px-1 rounded ml-1">({linkIds.join(', ')})</span>
+                            </span>
+                          </div>
                           <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded uppercase border bg-red-500/10 text-red-400 border-red-500/30 shrink-0">
                             {info.status.toUpperCase()}
                           </span>
                         </div>
-                        <div className="text-[10px] text-gray-500 font-sans">
-                          <span className="text-[9px] font-mono text-red-400/80 font-bold uppercase block mb-0.5">Propagated Congestion Path:</span>
-                          <span className="text-gray-300">{uniqueAffectedNames.join(', ') || 'None adjacent'}</span>
+
+                        {/* Affected links section */}
+                        <div className="bg-red-500/[0.015] border border-red-500/10 p-2 rounded">
+                          <span className="text-[8px] font-mono text-gray-500 font-bold uppercase tracking-wider block mb-1">AFFECTED ADJACENT ROADS</span>
+                          <div className="text-[10px] text-gray-300 font-sans leading-relaxed">
+                            {(() => {
+                              const details = linkIds.map((id: string) => {
+                                const affIds = getAffectedLinks(id);
+                                const affRoadNames = affIds.map(affId => `${linkToRoadMap[affId]?.roadName || affId} (${affId})`);
+                                return Array.from(new Set(affRoadNames));
+                              }).flat();
+                              const uniqueDetails = Array.from(new Set(details));
+                              return uniqueDetails.join(', ') || 'None adjacent';
+                            })()}
+                          </div>
                         </div>
                       </div>
                     );

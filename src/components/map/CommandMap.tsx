@@ -290,7 +290,11 @@ export default function CommandMap({ nodes, selectedNode, onNodeSelect, selected
         line.closeTooltip();
       });
       line.on('click', () => {
-        onLinkSelect(key);
+        if (selectedLinkRef.current === key) {
+          onLinkSelect(null);
+        } else {
+          onLinkSelect(key);
+        }
       });
       linesRef.current[key] = line;
     });
@@ -326,8 +330,12 @@ export default function CommandMap({ nodes, selectedNode, onNodeSelect, selected
             setDrawnRoute([...route, node.id]);
           }
         } else {
-          onNodeSelect(node);
-          map.flyTo([node.lat, node.lng], 16, { duration: 1.2, easeLinearity: 0.3 });
+          if (selectedNodeRef.current?.id === node.id) {
+            onNodeSelect(null);
+          } else {
+            onNodeSelect(node);
+            map.flyTo([node.lat, node.lng], 16, { duration: 1.2, easeLinearity: 0.3 });
+          }
         }
       });
 

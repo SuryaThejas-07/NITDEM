@@ -74,6 +74,7 @@ export interface Notification {
   tokenId?: string;
   timestamp: string;
   read: boolean;
+  simulationTimeSec?: number;
 }
 
 export interface WeatherData {
