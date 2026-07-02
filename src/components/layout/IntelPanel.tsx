@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Brain, Zap, Plane, AlertTriangle, Thermometer, Droplets, CloudRain, MapPin, TrendingUp, CheckCircle2, Sparkles, Activity, ArrowLeft, ChevronDown, ChevronUp, Siren, Clock } from 'lucide-react';
 import type { TrafficNode, Drone, PredictionWindow, RoadLinkMetadata, Incident, GCSLinkData, GCSPredictionData } from '../../types';
+import { linkToRoadMap, getAffectedLinks } from '../../hooks/useAppStore';
 import { 
   AI_RECOMMENDATIONS, 
   WEATHER, 
@@ -1177,6 +1178,10 @@ function Forecast20Panel({
     const isBottleneck = forecast ? forecast.severityLevel === 'CRITICAL' : false;
     const rawStrategy = forecast ? forecast.recommendedStrategy : '';
     const strategy = (rawStrategy === '' || rawStrategy === '0' || !rawStrategy) ? 'No measures required' : rawStrategy;
+
+    const affectedLinkIds = isBottleneck ? getAffectedLinks(linkId) : [];
+    const affectedRoadNames = affectedLinkIds.map(id => linkToRoadMap[id]?.roadName || id);
+    const uniqueAffectedNames = Array.from(new Set(affectedRoadNames));
     
     return (
       <div 
@@ -1214,6 +1219,13 @@ function Forecast20Panel({
             <div className="text-xs text-gray-200 mt-0.5 leading-relaxed font-sans">{strategy}</div>
           </div>
         </div>
+
+        {isBottleneck && uniqueAffectedNames.length > 0 && (
+          <div className="bg-red-500/5 border border-red-500/10 p-2 rounded text-[10px] text-gray-400">
+            <span className="font-bold text-red-400 uppercase font-mono tracking-wider">Affected Adjacent Roads</span>
+            <div className="text-xs text-gray-300 mt-0.5 font-sans leading-snug">{uniqueAffectedNames.join(', ')}</div>
+          </div>
+        )}
       </div>
     );
   };

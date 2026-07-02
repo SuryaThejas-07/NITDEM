@@ -15,7 +15,7 @@ const junctionMap: Record<string, string> = {
   'East Bypass Junction': 'east_bypass',
 };
 
-const linkToRoadMap: Record<string, { roadName: string; lat: number; lng: number; junction: string }> = {
+export const linkToRoadMap: Record<string, { roadName: string; lat: number; lng: number; junction: string }> = {
   L1: { roadName: 'Mini Bypass Road (North)', lat: 11.2569, lng: 75.7919, junction: 'Arayidathupalam Junction' },
   L18: { roadName: 'Mini Bypass Road (North)', lat: 11.2569, lng: 75.7919, junction: 'Arayidathupalam Junction' },
   L2: { roadName: 'Mini Bypass Road (South)', lat: 11.2539, lng: 75.79255, junction: 'Midtown Junction' },
@@ -77,6 +77,29 @@ const SIMULATIONS_KEY = 'nitdem_simulations';
 function generateTokenId(): string {
   const num = Math.floor(Math.random() * 9000) + 1000;
   return `TK-${num}`;
+}
+
+export function getAffectedLinks(linkId: string): string[] {
+  const nodeLinkConnections: Record<string, string[]> = {
+    mavoor: ['L11', 'L23', 'L12', 'L25', 'L14', 'L26'],
+    bus_stand: ['L11', 'L23', 'L13', 'L19', 'L6', 'L17'],
+    arayidathupalam: ['L13', 'L19', 'L1', 'L18'],
+    mananchira: ['L14', 'L26', 'L8', 'L22', 'L5', 'L15'],
+    stadium: ['L6', 'L17', 'L3', 'L16', 'L4', 'L10', 'L5', 'L15'],
+    midtown: ['L1', 'L18', 'L3', 'L16', 'L2', 'L24'],
+    palayam: ['L8', 'L22', 'L9', 'L21'],
+    poonthanam: ['L9', 'L21', 'L4', 'L10', 'L7', 'L20'],
+    east_bypass: ['L2', 'L24', 'L7', 'L20'],
+  };
+  const affected = new Set<string>();
+  Object.values(nodeLinkConnections).forEach(links => {
+    if (links.includes(linkId)) {
+      links.forEach(l => {
+        if (l !== linkId) affected.add(l);
+      });
+    }
+  });
+  return Array.from(affected);
 }
 
 export function useAppStore() {
@@ -163,6 +186,8 @@ export function useAppStore() {
 
   const [gcsLinkData, setGcsLinkData] = useState<GCSLinkData[]>([]);
   const [gcsPredictions, setGcsPredictions] = useState<GCSPredictionData[]>([]);
+  const [gcsShortTermPredictions, setGcsShortTermPredictions] = useState<any[]>([]);
+  const [lastNotifiedBucketSec, setLastNotifiedBucketSec] = useState<number | null>(null);
 
   // States for pre-parsed GCS coordinates and metric datasets
   const [coordsByTimestamp, setCoordsByTimestamp] = useState<Record<string, GCSLinkData[]>>({});
@@ -224,6 +249,19 @@ export function useAppStore() {
           }
         })
         .catch(err => console.error("Error loading O1.json", err));
+
+      // Load I2.json for gcsShortTermPredictions
+      fetch('/I2.json')
+        .then(r => {
+          if (!r.ok) throw new Error(`Failed to fetch /I2.json: status ${r.status}`);
+          return r.json();
+        })
+        .then(data => {
+          if (data) {
+            setGcsShortTermPredictions(data);
+          }
+        })
+        .catch(err => console.error("Error loading I2.json", err));
     };
 
     fetchNewDatasets();
@@ -806,6 +844,59 @@ export function useAppStore() {
     }, 8000);
   }, []);
 
+  // Trigger alert popup and notification for 20-min forecasts requiring a management strategy
+  useEffect(() => {
+    if (!isAuthenticated || gcsPredictions.length === 0) return;
+
+    // Convert selectedTime (HH:MM:SS) to seconds
+    const parts = selectedTime.split(':').map(Number);
+    const targetSec = (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
+    
+    // Snap to 20-minute interval block
+    const bucketStartSec = Math.floor(targetSec / 1200) * 1200;
+
+    // Avoid duplicate triggers for the same time bucket
+    if (bucketStartSec === lastNotifiedBucketSec) return;
+
+    // Find all critical bottleneck links in O1 predictions for this target time bucket
+    const activePreds = gcsPredictions.filter(p => p.predictionHorizonSec === bucketStartSec && p.severityLevel === 'CRITICAL');
+    
+    // Filter for links that actually require a management strategy (i.e. not empty and not "No measures required")
+    const linksRequiringMeasures = activePreds.filter(p => {
+      const s = p.recommendedStrategy;
+      return s && s !== '0' && s !== 'No measures required';
+    });
+
+    if (linksRequiringMeasures.length > 0) {
+      const formatSecToTime = (totalSec: number) => {
+        const h = Math.floor(totalSec / 3600);
+        const m = Math.floor((totalSec % 3600) / 60);
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      };
+
+      const timeStr = formatSecToTime(bucketStartSec);
+      
+      linksRequiringMeasures.forEach(item => {
+        const linkId = item.link;
+        const roadName = linkToRoadMap[linkId]?.roadName || `Link ${linkId}`;
+        const strategy = item.recommendedStrategy;
+        const affectedLinkIds = getAffectedLinks(linkId);
+        const affectedRoadNames = affectedLinkIds.map(id => linkToRoadMap[id]?.roadName || id);
+        const uniqueAffectedNames = Array.from(new Set(affectedRoadNames));
+        
+        const message = `Bottleneck predicted on ${roadName} (${linkId}) at ${timeStr}. Strategy: ${strategy}. Affected adjacent roads: ${uniqueAffectedNames.join(', ') || 'none'}.`;
+
+        addNotification({
+          type: 'critical',
+          title: `⚠️ TRAFFIC MEASURE REQUIRED: ${linkId}`,
+          message
+        });
+      });
+
+      setLastNotifiedBucketSec(bucketStartSec);
+    }
+  }, [selectedTime, gcsPredictions, isAuthenticated, lastNotifiedBucketSec, addNotification]);
+
   const createToken = useCallback((data: Omit<Token, 'id' | 'timestamp'>) => {
     let lat = data.lat;
     let lng = data.lng;
@@ -1218,6 +1309,7 @@ export function useAppStore() {
     enableGcsIncidents,
     setEnableGcsIncidents,
     gcsPredictions,
+    gcsShortTermPredictions,
     uniqueTimestamps,
     selectedTime,
     setSelectedTime,

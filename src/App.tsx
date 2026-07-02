@@ -81,6 +81,7 @@ export default function App() {
             setWhatIfRetimingSeconds={store.setWhatIfRetimingSeconds}
             isRetimingApplied={store.isRetimingApplied}
             setIsRetimingApplied={store.setIsRetimingApplied}
+            linkStatuses={store.linkStatuses}
           />
         );
       case 'map':

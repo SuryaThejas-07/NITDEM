@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TrendingUp, Play, CheckCircle, AlertTriangle, Plane, MapPin, Users, Brain } from 'lucide-react';
-import { useAppStore } from '../../hooks/useAppStore';
+import { useAppStore, linkToRoadMap, getAffectedLinks } from '../../hooks/useAppStore';
 
 const EVENTS = [
   { id: 'football', label: 'EMS Stadium Football Match', icon: '⚽', expectedAttendance: 25000 },
@@ -29,6 +29,7 @@ interface Prediction {
   congestionStart: string;
   peakTime: string;
   expectedDelay: string;
+  affectedLinksText?: string;
 }
 
 export default function TrafficForecasting() {
@@ -48,18 +49,123 @@ export default function TrafficForecasting() {
       await new Promise(r => setTimeout(r, 400 + Math.random() * 300));
       setLoadStep(i + 1);
     }
-    const att = parseInt(attendance) || 25000;
-    setPrediction({
-      bottleneck: att > 30000 ? 'KSRTC Bus Stand & Stadium Junction' : 'Stadium Junction',
-      confidence: att > 30000 ? 98 : 96,
-      recommendation: 'Increase Green Signal by 20 Seconds on NH-66',
-      officers: att > 30000 ? 8 : 4,
-      drones: att > 20000 ? 3 : 2,
-      alternateRoute: 'Mini Bypass via Mavoor Road',
-      congestionStart: `${parseInt(eventTime.split(':')[0]) - 1}:30`,
-      peakTime: `${parseInt(eventTime.split(':')[0])}:15`,
-      expectedDelay: att > 30000 ? '35–55 min' : '18–28 min',
-    });
+    
+    // Snap eventTime to the nearest 20 minutes (e.g. 19:12 -> 19:20)
+    const [h, m] = eventTime.split(':').map(Number);
+    const snappedM = Math.round(m / 20) * 20;
+    let finalH = h;
+    let finalM = snappedM;
+    if (snappedM === 60) {
+      finalM = 0;
+      finalH = (h + 1) % 24;
+    }
+    const snappedTimeKey = `${String(finalH).padStart(2, '0')}:${String(finalM).padStart(2, '0')}`;
+    const targetSec = finalH * 3600 + finalM * 60;
+
+    // Filter short term predictions (I2.json)
+    const shortTerm = store.gcsShortTermPredictions || [];
+    const matchedI2 = shortTerm.filter((p: any) => p.predictedFor === snappedTimeKey);
+
+    // Filter O1 predictions (O1.json)
+    const predictions = store.gcsPredictions || [];
+    const matchedO1 = predictions.filter((p: any) => p.predictionHorizonSec === targetSec);
+
+    // Find bottleneck links
+    const bottleneckI2 = matchedI2.filter((p: any) => p.isBottleneck);
+    const bottleneckO1 = matchedO1.filter((p: any) => p.severityLevel === 'CRITICAL');
+
+    // Combine unique bottleneck link IDs
+    const bottleneckLinkIds = Array.from(new Set([
+      ...bottleneckI2.map((p: any) => p.link),
+      ...bottleneckO1.map((p: any) => p.link)
+    ]));
+
+    if (bottleneckLinkIds.length > 0) {
+      // 1. Bottleneck descriptions
+      const names = bottleneckLinkIds.map(id => linkToRoadMap[id]?.roadName || `Link ${id}`);
+      const bottleneckText = Array.from(new Set(names)).join(' & ');
+
+      // 2. Delays
+      const delays = bottleneckI2.map((r: any) => r.vehicleDelay).filter((d: number) => d > 0);
+      const minDelay = delays.length > 0 ? Math.min(...delays) : 12;
+      const maxDelay = delays.length > 0 ? Math.max(...delays) : 35;
+      const expectedDelay = minDelay === maxDelay 
+        ? `${Math.round(minDelay)} min` 
+        : `${Math.round(minDelay)}–${Math.round(maxDelay)} min`;
+
+      // 3. AI recommendations
+      const strategies = matchedO1
+        .filter((r: any) => bottleneckLinkIds.includes(r.link))
+        .map((r: any) => r.recommendedStrategy)
+        .filter((s: string) => s && s !== '0' && s !== 'No measures required');
+      const recommendation = strategies.length > 0 
+        ? Array.from(new Set(strategies)).join('; ') 
+        : 'Optimize green signal timing, implement directional traffic diversion';
+
+      // 4. Officers and Drones counts
+      const officers = Math.min(12, Math.max(3, bottleneckLinkIds.length * 2));
+      const drones = Math.min(6, Math.max(1, Math.ceil(bottleneckLinkIds.length * 0.7)));
+
+      // 5. Alternate Routes mapping
+      const alternateRouteMap: Record<string, string> = {
+        L13: 'Mini Bypass via Mavoor Road',
+        L19: 'Mini Bypass via Mavoor Road',
+        L1: 'Palayam-Mananchira Link Road',
+        L18: 'Palayam-Mananchira Link Road',
+        L6: 'Bank Road diversion',
+        L17: 'Bank Road diversion',
+        L3: 'Pavamani Road bypass',
+        L16: 'Pavamani Road bypass',
+      };
+      const altRoutes = bottleneckLinkIds.map(id => alternateRouteMap[id]).filter(Boolean);
+      const alternateRoute = altRoutes.length > 0 
+        ? Array.from(new Set(altRoutes)).join(' or ') 
+        : 'Mini Bypass Mavoor Road diversion';
+
+      // 6. Affected links
+      const affectedLinkIds: string[] = [];
+      bottleneckLinkIds.forEach(id => {
+        getAffectedLinks(id).forEach(affId => {
+          if (!bottleneckLinkIds.includes(affId)) {
+            affectedLinkIds.push(affId);
+          }
+        });
+      });
+      const uniqueAffected = Array.from(new Set(affectedLinkIds));
+      const affectedRoadNames = uniqueAffected.map(id => linkToRoadMap[id]?.roadName || id);
+      const affectedText = affectedRoadNames.length > 0 
+        ? Array.from(new Set(affectedRoadNames)).join(' & ') 
+        : 'None';
+
+      const congestionStart = `${String(finalH - 1 < 0 ? 23 : finalH - 1).padStart(2, '0')}:30`;
+      const peakTime = `${String(finalH).padStart(2, '0')}:15`;
+
+      setPrediction({
+        bottleneck: bottleneckText,
+        confidence: 90 + Math.round(Math.random() * 8),
+        recommendation,
+        officers,
+        drones,
+        alternateRoute,
+        congestionStart,
+        peakTime,
+        expectedDelay,
+        affectedLinksText: affectedText
+      });
+    } else {
+      setPrediction({
+        bottleneck: 'None (Traffic Flowing Normally)',
+        confidence: 99,
+        recommendation: 'Routine UAV monitoring only. No active bottleneck countermeasures required.',
+        officers: 1,
+        drones: 1,
+        alternateRoute: 'N/A (No diversion needed)',
+        congestionStart: '--:--',
+        peakTime: '--:--',
+        expectedDelay: '0–5 min',
+        affectedLinksText: 'None'
+      });
+    }
     setStatus('done');
   };
 
@@ -211,6 +317,13 @@ export default function TrafficForecasting() {
                   </div>
                   <div className="text-xs text-green-400 font-mono">{prediction.alternateRoute}</div>
                 </div>
+
+                {prediction.affectedLinksText && prediction.affectedLinksText !== 'None' && (
+                  <div className="bg-white/[0.03] rounded-lg p-3 border border-red-500/20 bg-red-500/5">
+                    <div className="text-xs font-sans font-semibold text-red-400 mb-1">AFFECTED ADJACENT ROADS</div>
+                    <div className="text-xs text-gray-300 font-mono leading-relaxed">{prediction.affectedLinksText}</div>
+                  </div>
+                )}
 
                 {/* STGNN Inference Network Insights */}
                 <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-3.5 space-y-3">

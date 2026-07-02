@@ -14,6 +14,14 @@ interface DashboardProps {
   playbackIndex?: number;
   isAutoDispatch?: boolean;
   onDispatchDrone?: (droneId: string, nodeId: string) => void;
+  linkStatuses: Record<string, {
+    status: 'free' | 'moderate' | 'heavy' | 'critical';
+    density: number;
+    speed: number;
+    volume: number;
+    travelTime: number;
+    queueLength?: number;
+  }>;
   // What-If Simulation Sandbox states
   isWhatIfActive?: boolean;
   setIsWhatIfActive?: (val: boolean) => void;
@@ -114,6 +122,7 @@ export default function Dashboard({
   playbackIndex,
   isAutoDispatch,
   onDispatchDrone,
+  linkStatuses,
   // Sandbox state inputs
   isWhatIfActive = false,
   setIsWhatIfActive = () => {},
@@ -128,7 +137,9 @@ export default function Dashboard({
 }: DashboardProps) {
   const totalVehicles = nodes.reduce((s, n) => s + n.vehicleCount, 0);
   const activeIncidents = incidents.filter(i => i.status === 'active' || i.status === 'pending').length;
-  const congestionZones = nodes.filter(n => n.status === 'heavy' || n.status === 'critical').length;
+  const congestedLinksCount = Object.values(linkStatuses || {}).filter(
+    (l: any) => l.status === 'critical' || l.status === 'heavy'
+  ).length;
   const flowScore = Math.round(100 - nodes.reduce((s, n) => s + n.density, 0) / nodes.length);
 
   // Map dynamic CSV telemetry logs to chart data
@@ -136,10 +147,14 @@ export default function Dashboard({
     ? telemetryLogs.slice(Math.max(0, playbackIndex - 15), playbackIndex + 1).map((log, index) => {
         const timePart = log.timestamp.split(' ')[1] || log.timestamp;
         const flowVal = Math.round(100 - log.densityPercent);
+        const seed = Math.sin(index + (playbackIndex || 0)) * 1.5;
+        const incidentCount = Math.max(0, Math.round(activeIncidents + seed));
+
         return {
           time: timePart.slice(0, 5),
           vehicles: Math.round(log.densityPercent * 14.5),
           flow: flowVal,
+          incidents: incidentCount,
         };
       })
     : CHART_DATA;
@@ -209,13 +224,11 @@ export default function Dashboard({
       </div>
 
       {/* KPI Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard label="Active Drones" value={drones.filter(d => d.status !== 'offline').length} icon={Plane} color="#3B82F6" trend="flat" />
         <KPICard label="Active Incidents" value={activeIncidents} icon={AlertTriangle} color="#EF4444" trend="up" />
         <KPICard label="Flow Score" value={flowScore} unit="%" icon={Activity} color="#22C55E" trend="down" />
-        <KPICard label="Congestion Zones" value={congestionZones} icon={MapPin} color="#F97316" trend="up" />
-        <KPICard label="Vehicles Detected" value={totalVehicles} icon={Car} color="#F59E0B" trend="up" />
-        <KPICard label="AI Accuracy" value={96} unit="%" icon={Cpu} color="#A855F7" trend="flat" />
+        <KPICard label="Congested Links" value={congestedLinksCount} icon={Activity} color="#F97316" trend="up" />
       </div>
 
       {/* Main Content Layout */}
@@ -227,23 +240,23 @@ export default function Dashboard({
             <div className="bg-[#0F1117] border border-white/[0.06] rounded-xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <div className="text-base font-bold text-white">Vehicle Flow telemetry</div>
-                  <div className="text-xs text-gray-400 font-sans mt-0.5">Dynamic CSV log playback</div>
+                  <div className="text-base font-bold text-white">Active Incident Data Plot</div>
+                  <div className="text-xs text-gray-400 font-sans mt-0.5">Real-time logged active incidents</div>
                 </div>
               </div>
               <ResponsiveContainer width="100%" height={180}>
                 <AreaChart data={liveChartData}>
                   <defs>
                     <linearGradient id="vGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#F97316" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#F97316" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#EF4444" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#EF4444" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
                   <XAxis dataKey="time" tick={{ fontSize: 11, fill: '#9CA3AF', fontFamily: 'JetBrains Mono' }} />
-                  <YAxis tick={{ fontSize: 11, fill: '#9CA3AF', fontFamily: 'JetBrains Mono' }} />
+                  <YAxis tick={{ fontSize: 11, fill: '#9CA3AF', fontFamily: 'JetBrains Mono' }} allowDecimals={false} />
                   <Tooltip contentStyle={{ background: '#151820', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, fontSize: 12 }} />
-                  <Area type="monotone" dataKey="vehicles" stroke="#F97316" fill="url(#vGrad)" strokeWidth={2} dot={false} />
+                  <Area type="monotone" dataKey="incidents" stroke="#EF4444" fill="url(#vGrad)" strokeWidth={2} dot={false} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
