@@ -183,7 +183,7 @@ export default function AIAnalytics({
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-sans">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-sans">
           {/* Inputs Section */}
           <div className="bg-white/[0.02] border border-white/[0.04] rounded-lg p-3 space-y-2">
             <h3 className="text-xs font-bold text-orange-400 uppercase font-mono tracking-wider">Verified Model Inputs</h3>
@@ -215,31 +215,6 @@ export default function AIAnalytics({
               <div className="bg-white/[0.02] px-2 py-1 rounded border border-white/[0.03]">
                 <strong className="text-white">severity_level:</strong> Computed severity (LOW to CRITICAL)
               </div>
-            </div>
-          </div>
-
-          {/* Network Graph Fusion */}
-          <div className="bg-white/[0.02] border border-white/[0.04] rounded-lg p-3 space-y-2">
-            <h3 className="text-xs font-bold text-purple-400 uppercase font-mono tracking-wider">Graph Fusion Layer</h3>
-            <p className="text-[11px] text-gray-400 leading-relaxed">
-              Predicts outcomes for 8 primary links using three dynamic adjacency matrices:
-            </p>
-            <div className="space-y-1 text-[10px] text-gray-300">
-              <div className="flex justify-between">
-                <span>1. Physical road adjacency</span>
-                <span className="font-mono text-purple-400 font-bold">A_road</span>
-              </div>
-              <div className="flex justify-between">
-                <span>2. Traffic density correlation</span>
-                <span className="font-mono text-purple-400 font-bold">A_traffic</span>
-              </div>
-              <div className="flex justify-between">
-                <span>3. Event proximity spatial weight</span>
-                <span className="font-mono text-purple-400 font-bold">A_event</span>
-              </div>
-            </div>
-            <div className="text-[10px] text-gray-500 font-sans border-t border-white/[0.04] pt-1.5 leading-relaxed">
-              Model trained on Kozhikode NH-66 corridor links: L19, L13, L6, L17, L18, L1, L16, L3.
             </div>
           </div>
         </div>
