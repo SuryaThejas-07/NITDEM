@@ -4,6 +4,8 @@ import { Plane, AlertTriangle, Activity, MapPin, Car, Cpu, TrendingUp, TrendingD
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { Drone, Incident, TrafficNode } from '../../types';
 import { statusColor } from '../../utils';
+import { getAffectedLinks, linkToRoadMap } from '../../hooks/useAppStore';
+import { ROAD_LINKS_METADATA } from '../../data/constants';
 
 interface DashboardProps {
   drones: Drone[];
@@ -214,7 +216,7 @@ export default function Dashboard({
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-xl font-bold text-white">Operations Dashboard</h1>
-          <p className="text-xs text-gray-400 font-sans mt-0.5">Kozhikode Traffic Intelligence · Live Overview</p>
+          <p className="text-xs text-gray-400 font-sans mt-0.5">Kozhikode NH-66 & Bypass Operations · Live Overview</p>
         </div>
         <div className="flex items-center gap-2">
           <motion.div animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 2, repeat: Infinity }}
@@ -224,10 +226,9 @@ export default function Dashboard({
       </div>
 
       {/* KPI Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <KPICard label="Active Drones" value={drones.filter(d => d.status !== 'offline').length} icon={Plane} color="#3B82F6" trend="flat" />
         <KPICard label="Active Incidents" value={activeIncidents} icon={AlertTriangle} color="#EF4444" trend="up" />
-        <KPICard label="Flow Score" value={flowScore} unit="%" icon={Activity} color="#22C55E" trend="down" />
         <KPICard label="Congested Links" value={congestedLinksCount} icon={Activity} color="#F97316" trend="up" />
       </div>
 
@@ -236,48 +237,99 @@ export default function Dashboard({
         {/* Left Side: Real-Time Charts & Status Table */}
         <div className="lg:col-span-2 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Chart 1 */}
-            <div className="bg-[#0F1117] border border-white/[0.06] rounded-xl p-5">
-              <div className="flex items-center justify-between mb-4">
+            {/* Affected Links Due to Congestion */}
+            <div className="bg-[#0F1117] border border-white/[0.06] rounded-xl p-5 flex flex-col min-h-[260px]">
+              <div className="flex items-center justify-between mb-4 border-b border-white/[0.04] pb-2">
                 <div>
-                  <div className="text-base font-bold text-white">Active Incident Data Plot</div>
-                  <div className="text-xs text-gray-400 font-sans mt-0.5">Real-time logged active incidents</div>
+                  <div className="text-base font-bold text-white">Affected Links Due to Congestion</div>
+                  <div className="text-xs text-gray-400 font-sans mt-0.5">Adjacent roads impacted by current bottlenecks</div>
                 </div>
               </div>
-              <ResponsiveContainer width="100%" height={180}>
-                <AreaChart data={liveChartData}>
-                  <defs>
-                    <linearGradient id="vGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#EF4444" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#EF4444" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                  <XAxis dataKey="time" tick={{ fontSize: 11, fill: '#9CA3AF', fontFamily: 'JetBrains Mono' }} />
-                  <YAxis tick={{ fontSize: 11, fill: '#9CA3AF', fontFamily: 'JetBrains Mono' }} allowDecimals={false} />
-                  <Tooltip contentStyle={{ background: '#151820', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, fontSize: 12 }} />
-                  <Area type="monotone" dataKey="incidents" stroke="#EF4444" fill="url(#vGrad)" strokeWidth={2} dot={false} />
-                </AreaChart>
-              </ResponsiveContainer>
+              <div className="flex-1 overflow-y-auto space-y-3 pr-1 max-h-[180px]">
+                {(() => {
+                  const activeBottlenecks = Object.entries(linkStatuses || {}).filter(
+                    ([_, info]: any) => info.status === 'critical' || info.status === 'heavy'
+                  );
+
+                  if (activeBottlenecks.length === 0) {
+                    return (
+                      <div className="h-full flex flex-col items-center justify-center text-center py-6">
+                        <span className="text-xs font-mono text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-1 rounded">
+                          ✓ ALL CORRIDORS FREE FLOWING
+                        </span>
+                        <p className="text-[11px] text-gray-500 font-sans mt-2">No active bottlenecks or congestion propagation detected.</p>
+                      </div>
+                    );
+                  }
+
+                  return activeBottlenecks.map(([linkKey, info]: any) => {
+                    const connectionToLinks: Record<string, [string, string]> = {
+                      'mavoor-bus_stand': ['L23', 'L11'],
+                      'bus_stand-arayidathupalam': ['L19', 'L13'],
+                      'arayidathupalam-midtown': ['L1', 'L18'],
+                      'midtown-east_bypass': ['L2', 'L24'],
+                      'east_bypass-poonthanam': ['L20', 'L7'],
+                      'poonthanam-palayam': ['L21', 'L9'],
+                      'palayam-mananchira': ['L22', 'L8'],
+                      'mavoor-mananchira': ['L26', 'L14'],
+                      'bus_stand-stadium': ['L6', 'L17'],
+                      'stadium-midtown': ['L3', 'L16'],
+                      'stadium-poonthanam': ['L4', 'L10'],
+                      'stadium-mananchira': ['L5', 'L15'],
+                    };
+                    const linkIds = connectionToLinks[linkKey] || [];
+                    const affectedRoads = new Set<string>();
+                    linkIds.forEach((id: string) => {
+                      const affIds = getAffectedLinks(id);
+                      affIds.forEach((affId: string) => {
+                        const roadName = linkToRoadMap[affId]?.roadName;
+                        if (roadName) affectedRoads.add(roadName);
+                      });
+                    });
+                    
+                    const roadName = ROAD_LINKS_METADATA[linkKey]?.name || linkKey;
+                    const uniqueAffectedNames = Array.from(affectedRoads);
+
+                    return (
+                      <div key={linkKey} className="bg-white/[0.02] border border-white/[0.04] p-2.5 rounded-lg space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-white truncate max-w-[70%]">{roadName}</span>
+                          <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded uppercase border bg-red-500/10 text-red-400 border-red-500/30 shrink-0">
+                            {info.status.toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-gray-500 font-sans">
+                          <span className="text-[9px] font-mono text-red-400/80 font-bold uppercase block mb-0.5">Propagated Congestion Path:</span>
+                          <span className="text-gray-300">{uniqueAffectedNames.join(', ') || 'None adjacent'}</span>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
             </div>
 
-            {/* Chart 2 */}
-            <div className="bg-[#0F1117] border border-white/[0.06] rounded-xl p-5">
-              <div className="flex items-center justify-between mb-4">
+            {/* Overall Network Parameters */}
+            <div className="bg-[#0F1117] border border-white/[0.06] rounded-xl p-5 min-h-[260px] flex flex-col">
+              <div className="flex items-center justify-between mb-4 border-b border-white/[0.04] pb-2">
                 <div>
-                  <div className="text-base font-bold text-white">Traffic Flow Score</div>
-                  <div className="text-xs text-gray-400 font-sans mt-0.5">Dynamic Efficiency % over time</div>
+                  <div className="text-base font-bold text-white">Overall Network Parameters</div>
+                  <div className="text-xs text-gray-400 font-sans mt-0.5">Aggregated metrics across Kozhikode NH-66 & bypass network</div>
                 </div>
               </div>
-              <ResponsiveContainer width="100%" height={180}>
-                <LineChart data={liveChartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                  <XAxis dataKey="time" tick={{ fontSize: 11, fill: '#9CA3AF', fontFamily: 'JetBrains Mono' }} />
-                  <YAxis tick={{ fontSize: 11, fill: '#9CA3AF', fontFamily: 'JetBrains Mono' }} domain={[0, 100]} />
-                  <Tooltip contentStyle={{ background: '#151820', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, fontSize: 12 }} />
-                  <Line type="monotone" dataKey="flow" stroke="#22C55E" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
+              <div className="flex-1 grid grid-cols-2 gap-3.5 text-xs">
+                {[
+                  { label: 'Average Speed', value: `${Math.round(nodes.reduce((s, n) => s + n.avgSpeed, 0) / nodes.length)} km/h`, color: '#22C55E' },
+                  { label: 'Average Density', value: `${Math.round(nodes.reduce((s, n) => s + n.density, 0) / nodes.length)}%`, color: '#F97316' },
+                  { label: 'Network Congestion Index', value: `${Object.values(linkStatuses || {}).filter((l: any) => l.status === 'critical' || l.status === 'heavy').length} / ${Object.keys(linkStatuses || {}).length} links`, color: '#EF4444' },
+                  { label: 'Active Link Count', value: `${Object.keys(linkStatuses || {}).length} monitored links`, color: '#3B82F6' },
+                ].map(item => (
+                  <div key={item.label} className="bg-white/[0.02] border border-white/[0.04] p-3 rounded-lg flex flex-col justify-between">
+                    <span className="text-[10px] text-gray-400 font-sans tracking-wide uppercase font-semibold leading-normal">{item.label}</span>
+                    <span className="text-lg font-bold font-mono mt-1.5" style={{ color: item.color }}>{item.value}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -290,7 +342,7 @@ export default function Dashboard({
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-white/[0.04] bg-white/[0.01]">
-                    {['Node', 'Status', 'Density', 'Vehicles', 'Speed', 'Incidents'].map(h => (
+                    {['Node', 'Status', 'Density', 'Speed', 'Incidents'].map(h => (
                       <th key={h} className="px-5 py-3 text-left text-xs font-mono text-gray-400 tracking-wider uppercase font-bold">{h}</th>
                     ))}
                   </tr>
@@ -322,7 +374,6 @@ export default function Dashboard({
                           <span className="text-xs font-mono text-gray-300">{node.density}%</span>
                         </div>
                       </td>
-                      <td className="px-5 py-3.5 text-xs font-mono text-gray-200">{node.vehicleCount.toLocaleString()}</td>
                       <td className="px-5 py-3.5 text-xs font-mono text-gray-200">{node.avgSpeed} km/h</td>
                       <td className="px-5 py-3.5">
                         <span className={`text-xs font-mono font-bold ${node.incidentCount > 0 ? 'text-red-400' : 'text-green-400'}`}>
@@ -393,164 +444,15 @@ export default function Dashboard({
                   )}
                 </div>
               )}
-            </div>
           </div>
-
-          {/* AI Signal Mitigation Center */}
-          <div className="bg-[#0F1117] border border-white/[0.06] rounded-xl p-5 flex flex-col relative overflow-hidden">
-            <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-grid-pattern" />
-            <div className="flex items-center gap-2 pb-3 border-b border-white/[0.06] mb-3">
-              <Zap className="w-4 h-4 text-orange-400" />
-              <div>
-                <span className="text-sm font-bold text-white">AI Signal Mitigation Center</span>
-                <p className="text-[10px] text-gray-500 font-mono uppercase mt-0.5">Closed-Loop Traffic Management Hub</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              {/* Simulation Overrides Badge & Control */}
-              <div className="bg-white/[0.02] border border-white/[0.04] p-3 rounded-lg flex flex-col gap-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400 font-mono text-[9px] uppercase font-bold">Sandbox Overrides Status</span>
-                  {isWhatIfActive ? (
-                    <span className="text-[9px] font-mono px-2 py-0.5 bg-orange-500/10 border border-orange-500/30 text-orange-400 rounded-full font-bold animate-pulse">
-                      ⚠️ OVERRIDES ACTIVE
-                    </span>
-                  ) : (
-                    <span className="text-[9px] font-mono px-2 py-0.5 bg-green-500/10 border border-green-500/30 text-green-400 rounded-full font-bold">
-                      ✓ STEERING NOMINAL
-                    </span>
-                  )}
-                </div>
-
-                {isWhatIfActive && (
-                  <div className="text-[10px] font-mono text-gray-300 space-y-1 bg-white/[0.02] p-2 rounded border border-white/[0.04]">
-                    <div>Lanes Blocked: <span className="text-orange-400 font-bold">{whatIfLanesBlocked} / 3</span></div>
-                    <div>Event Intensity: <span className="text-orange-400 font-bold">{whatIfEventIntensity}%</span></div>
-                    <div>Retiming Duration: <span className="text-orange-400 font-bold">+{whatIfRetimingSeconds}s</span></div>
-                  </div>
-                )}
-
-                {isWhatIfActive && (
-                  <button
-                    onClick={() => {
-                      setIsWhatIfActive(false);
-                      setIsRetimingApplied(false);
-                      if (setWhatIfLanesBlocked) setWhatIfLanesBlocked(0);
-                      if (setWhatIfEventIntensity) setWhatIfEventIntensity(0);
-                    }}
-                    className="w-full text-center text-[10px] font-mono font-bold text-red-400 bg-red-500/15 border border-red-500/30 py-1.5 rounded hover:bg-red-500/25 transition-all"
-                  >
-                    Deactivate Sandbox Overrides
-                  </button>
-                )}
-              </div>
-
-              {/* Recommended Action Plan / Retiming Controller */}
-              <div className="bg-white/[0.02] border border-white/[0.04] p-3 rounded-lg space-y-2.5">
-                <span className="text-gray-400 block font-mono text-[9px] uppercase font-bold">AI RETIMING AGENT DIRECTIVE</span>
-                
-                {isRetimingApplied ? (
-                  <div className="space-y-2">
-                    <p className="text-[11px] text-green-400 font-sans leading-relaxed">
-                      ✓ Signal Retiming plan applied successfully. Extension of green phase by <strong>+{whatIfRetimingSeconds}s</strong> is actively mitigating bottleneck queues.
-                    </p>
-                    <button
-                      onClick={() => setIsRetimingApplied(false)}
-                      className="w-full text-center text-[10px] font-mono font-bold text-red-400 bg-red-500/15 border border-red-500/30 py-1.5 rounded hover:bg-red-500/25 transition-all"
-                    >
-                      Reset Traffic Signal Timing
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <p className="text-[11px] text-gray-300 font-sans leading-relaxed">
-                      STGNN predicts high queue delays at Mavoor corridor. Recommended action: <strong>Increase green phase duration by +{whatIfRetimingSeconds}s</strong> on L6 approach.
-                    </p>
-                    <button
-                      onClick={() => {
-                        setIsWhatIfActive(true);
-                        setIsRetimingApplied(true);
-                      }}
-                      className="w-full text-center text-[10px] font-mono font-bold text-green-950 bg-green-400 border border-green-500/30 py-1.5 rounded hover:bg-green-300 transition-all flex items-center justify-center gap-1"
-                    >
-                      Apply Recommended Plan
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Mitigation Impact Indicators */}
-              <div className="grid grid-cols-3 gap-2 text-center text-xs font-mono">
-                {[
-                  {
-                    label: 'Delay Savings',
-                    value: isRetimingApplied ? '-12.5s' : '0.0s',
-                    color: isRetimingApplied ? 'text-green-400' : 'text-gray-500'
-                  },
-                  {
-                    label: 'Queue Delta',
-                    value: isRetimingApplied ? '-22.4%' : '0.0%',
-                    color: isRetimingApplied ? 'text-green-400' : 'text-gray-500'
-                  },
-                  {
-                    label: 'Flow Score',
-                    value: isRetimingApplied ? '+12.0%' : 'Nominal',
-                    color: isRetimingApplied ? 'text-green-400' : 'text-gray-400'
-                  }
-                ].map((item) => (
-                  <div key={item.label} className="bg-white/[0.02] border border-white/[0.04] p-2 rounded-lg">
-                    <div className="text-[8px] text-gray-500 font-sans font-bold leading-tight truncate">{item.label}</div>
-                    <div className={`text-[11px] font-bold font-mono mt-1 ${item.color}`}>{item.value}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Action directives checklist */}
-              <div className="rounded-lg border border-white/[0.06] bg-white/[0.01] p-3 text-xs space-y-3">
-                <span className="text-[9px] text-gray-500 font-mono tracking-widest uppercase block border-b border-white/[0.04] pb-1 font-bold">
-                  AI MITIGATION TASK STATUS
-                </span>
-                
-                <div className="flex gap-2">
-                  <Zap className={`w-4 h-4 shrink-0 mt-0.5 ${isRetimingApplied ? 'text-green-400' : 'text-orange-400'}`} />
-                  <div>
-                    <span className="font-bold text-white block">Signal Timing Optimization</span>
-                    <span className="text-gray-400 font-sans leading-normal">
-                      {isRetimingApplied 
-                        ? 'Applied +18s green timing to L6. Cycle timing synchronized.' 
-                        : 'Recommended +18s green extension split to discharge queuing segments.'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <Car className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-bold text-white block">Pre-emptive Route Diversions</span>
-                    <span className="text-gray-400 font-sans leading-normal">Divert southbound bypass segments at Arayidathupalam to Midtown links.</span>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <Plane className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-bold text-white block">Resource Deployment</span>
-                    <span className="text-gray-400 font-sans leading-normal">Station traffic wardens at bottleneck approaches; hold UAV coverage overhead.</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Cloud Telemetry Pipeline Monitor */}
+          {/* Cloud Storage Pipeline Monitor */}
           <div className="bg-[#0F1117] border border-white/[0.06] rounded-xl p-5 flex flex-col relative overflow-hidden">
             <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-grid-pattern" />
             <div className="flex items-center gap-2 pb-3 border-b border-white/[0.06] mb-3">
               <Radio className="w-4 h-4 text-green-400 animate-pulse" />
               <div>
-                <span className="text-sm font-bold text-white">Cloud Data Pipeline Monitor</span>
-                <p className="text-[10px] text-gray-500 font-mono uppercase mt-0.5">Real-time GCS NOC Diagnostics</p>
+                <span className="text-sm font-bold text-white">Excel Storage Pipeline Monitor</span>
+                <p className="text-[10px] text-gray-500 font-mono uppercase mt-0.5">Real-time Excel/JSON NOC Sync Status</p>
               </div>
             </div>
 
@@ -558,8 +460,8 @@ export default function Dashboard({
               {/* Row 1: GCS Input Bucket */}
               <div className="flex items-center justify-between bg-white/[0.02] p-2.5 rounded border border-white/[0.04]">
                 <div className="flex flex-col">
-                  <span className="text-white font-semibold">GCS Input Bucket</span>
-                  <span className="text-[9px] text-gray-500">gs://input_parameters</span>
+                  <span className="text-white font-semibold">Excel Parameter Bucket</span>
+                  <span className="text-[9px] text-gray-500">I1a.xlsx / I2.xlsx</span>
                 </div>
                 <div className="text-right">
                   <span className="text-green-400 font-bold flex items-center gap-1.5 justify-end">
@@ -573,8 +475,8 @@ export default function Dashboard({
               {/* Row 2: GCS Output Bucket */}
               <div className="flex items-center justify-between bg-white/[0.02] p-2.5 rounded border border-white/[0.04]">
                 <div className="flex flex-col">
-                  <span className="text-white font-semibold">GCS Output Bucket</span>
-                  <span className="text-[9px] text-gray-500">gs://output_measures</span>
+                  <span className="text-white font-semibold">Excel Recommendation Bucket</span>
+                  <span className="text-[9px] text-gray-500">O1.xlsx</span>
                 </div>
                 <div className="text-right">
                   <span className="text-green-400 font-bold flex items-center gap-1.5 justify-end">
@@ -585,18 +487,18 @@ export default function Dashboard({
                 </div>
               </div>
 
-              {/* Row 3: STGNN Cloud Run API */}
+              {/* Row 3: Excel Integration Feed */}
               <div className="flex items-center justify-between bg-white/[0.02] p-2.5 rounded border border-white/[0.04]">
                 <div className="flex flex-col">
-                  <span className="text-white font-semibold">STGNN Inference API</span>
-                  <span className="text-[9px] text-gray-500">Cloud Run / asia-south1</span>
+                  <span className="text-white font-semibold">Excel Integration Feed</span>
+                  <span className="text-[9px] text-gray-500">public/*.json</span>
                 </div>
                 <div className="text-right">
                   <span className="text-green-400 font-bold flex items-center gap-1.5 justify-end">
                     <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
                     ONLINE
                   </span>
-                  <span className="text-[9px] text-gray-400 block mt-0.5">Device: CUDA (GPU)</span>
+                  <span className="text-[9px] text-gray-400 block mt-0.5">Caching: Local Storage Cache</span>
                 </div>
               </div>
 
@@ -612,7 +514,7 @@ export default function Dashboard({
                 </div>
               </div>
             </div>
-          </div>
+          </div>        </div>
         </div>
       </div>
     </div>

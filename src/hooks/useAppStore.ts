@@ -111,13 +111,13 @@ export function useAppStore() {
   const [currentRole, setCurrentRole] = useState<UserRole>('supervisor');
 
   const selectNode = useCallback((node: TrafficNode | null) => {
-    setSelectedNode(node);
-    if (node) setSelectedLink(null);
+    setSelectedNode(prev => prev?.id === node?.id ? null : node);
+    setSelectedLink(null);
   }, []);
 
   const selectLink = useCallback((linkId: string | null) => {
-    setSelectedLink(linkId);
-    if (linkId) setSelectedNode(null);
+    setSelectedLink(prev => prev === linkId ? null : linkId);
+    setSelectedNode(null);
   }, []);
   const [isDark, setIsDark] = useState(true);
   const [nodes, setNodes] = useState<TrafficNode[]>(TRAFFIC_NODES);
