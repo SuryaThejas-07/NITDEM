@@ -4,7 +4,8 @@ import { Plane, AlertTriangle, Activity, MapPin, Car, Cpu, TrendingUp, TrendingD
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { Drone, Incident, TrafficNode } from '../../types';
 import { statusColor } from '../../utils';
-import { getAffectedLinks, linkToRoadMap } from '../../hooks/useAppStore';
+import { getAffectedLinks } from '../../hooks/useAppStore';
+import { linkToRoadMap, linkToConnectionMap } from '../../hooks/linkMaps';
 import { ROAD_LINKS_METADATA } from '../../data/constants';
 
 interface DashboardProps {
@@ -24,6 +25,10 @@ interface DashboardProps {
     travelTime: number;
     queueLength?: number;
   }>;
+  notifications?: any[];
+  predictionWindow?: string;
+  selectedTime?: string;
+  gcsPredictions?: any[];
   // What-If Simulation Sandbox states
   isWhatIfActive?: boolean;
   setIsWhatIfActive?: (val: boolean) => void;
@@ -125,6 +130,10 @@ export default function Dashboard({
   isAutoDispatch,
   onDispatchDrone,
   linkStatuses,
+  notifications = [],
+  predictionWindow = 'current',
+  selectedTime = '00:00:00',
+  gcsPredictions = [],
   // Sandbox state inputs
   isWhatIfActive = false,
   setIsWhatIfActive = () => {},
@@ -139,7 +148,45 @@ export default function Dashboard({
 }: DashboardProps) {
   const totalVehicles = nodes.reduce((s, n) => s + n.vehicleCount, 0);
   const activeIncidents = incidents.filter(i => i.status === 'active' || i.status === 'pending').length;
-  const congestedLinksCount = Object.values(linkStatuses || {}).filter(
+
+  const parts = selectedTime.split(':').map(Number);
+  const targetSec = (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
+  const currentBucketSec = Math.floor(targetSec / 1200) * 1200;
+
+  const effectiveLinkStatuses = { ...linkStatuses };
+  const activePredictions = (gcsPredictions || []).filter(
+    (p: any) => p.predictionHorizonSec === currentBucketSec
+  );
+  const bottleneckCount = activePredictions.filter(
+    (p: any) => p.severityLevel === 'CRITICAL' || (p.recommendedStrategy && p.recommendedStrategy !== '0' && p.recommendedStrategy !== 'No measures required' && p.recommendedStrategy !== 'No Measures Required')
+  ).length;
+
+  notifications
+    .filter((n: any) => n.simulationTimeSec === currentBucketSec)
+    .forEach((n: any) => {
+      if (!n.linkId) return;
+    const connectionKey = linkToConnectionMap[n.linkId];
+    if (connectionKey) {
+      const msg = (n.message || '').toLowerCase();
+      const severity = msg.includes('police') || msg.includes('divert')
+        ? 'critical'
+        : 'heavy';
+      
+      const current = effectiveLinkStatuses[connectionKey];
+      if (!current || (current.status !== 'critical' && current.status !== 'heavy')) {
+        effectiveLinkStatuses[connectionKey] = {
+          status: severity,
+          density: current?.density || 68,
+          speed: current?.speed || 22,
+          volume: current?.volume || 240,
+          travelTime: current?.travelTime || 2.4,
+          queueLength: current?.queueLength || 4
+        };
+      }
+    }
+  });
+
+  const congestedLinksCount = Object.values(effectiveLinkStatuses).filter(
     (l: any) => l.status === 'critical' || l.status === 'heavy'
   ).length;
   const flowScore = Math.round(100 - nodes.reduce((s, n) => s + n.density, 0) / nodes.length);
@@ -229,7 +276,7 @@ export default function Dashboard({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <KPICard label="Active Drones" value={drones.filter(d => d.status !== 'offline').length} icon={Plane} color="#3B82F6" trend="flat" />
         <KPICard label="Active Incidents" value={activeIncidents} icon={AlertTriangle} color="#EF4444" trend="up" />
-        <KPICard label="Congested Links" value={congestedLinksCount} icon={Activity} color="#F97316" trend="up" />
+        <KPICard label="Active Bottlenecks" value={bottleneckCount} icon={Activity} color="#F97316" trend="up" />
       </div>
 
       {/* Main Content Layout */}
@@ -241,14 +288,15 @@ export default function Dashboard({
             <div className="bg-[#0F1117] border border-white/[0.06] rounded-xl p-5 flex flex-col min-h-[260px]">
               <div className="flex items-center justify-between mb-4 border-b border-white/[0.04] pb-2">
                 <div>
-                  <div className="text-base font-bold text-white">Affected Links Due to Congestion</div>
-                  <div className="text-xs text-gray-400 font-sans mt-0.5">Adjacent roads impacted by current bottlenecks</div>
+                  <div className="text-base font-bold text-white">Active Bottlenecks & Measures</div>
+                  <div className="text-xs text-gray-400 font-sans mt-0.5">Active bottlenecks and their corresponding mitigation measures</div>
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto space-y-3 pr-1 max-h-[180px]">
                 {(() => {
-                  const activeBottlenecks = Object.entries(linkStatuses || {}).filter(
-                    ([_, info]: any) => info.status === 'critical' || info.status === 'heavy'
+                  const activeBottlenecks = (gcsPredictions || []).filter(
+                    (p: any) => p.predictionHorizonSec === currentBucketSec && 
+                                (p.severityLevel === 'CRITICAL' || (p.recommendedStrategy && p.recommendedStrategy !== '0' && p.recommendedStrategy !== 'No measures required' && p.recommendedStrategy !== 'No Measures Required'))
                   );
 
                   if (activeBottlenecks.length === 0) {
@@ -257,57 +305,35 @@ export default function Dashboard({
                         <span className="text-xs font-mono text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-1 rounded">
                           ✓ ALL CORRIDORS FREE FLOWING
                         </span>
-                        <p className="text-[11px] text-gray-500 font-sans mt-2">No active bottlenecks or congestion propagation detected.</p>
+                        <p className="text-[11px] text-gray-500 font-sans mt-2">No active bottlenecks or management measures required.</p>
                       </div>
                     );
                   }
 
-                  return activeBottlenecks.map(([linkKey, info]: any) => {
-                    const connectionToLinks: Record<string, [string, string]> = {
-                      'mavoor-bus_stand': ['L23', 'L11'],
-                      'bus_stand-arayidathupalam': ['L19', 'L13'],
-                      'arayidathupalam-midtown': ['L1', 'L18'],
-                      'midtown-east_bypass': ['L2', 'L24'],
-                      'east_bypass-poonthanam': ['L20', 'L7'],
-                      'poonthanam-palayam': ['L21', 'L9'],
-                      'palayam-mananchira': ['L22', 'L8'],
-                      'mavoor-mananchira': ['L26', 'L14'],
-                      'bus_stand-stadium': ['L6', 'L17'],
-                      'stadium-midtown': ['L3', 'L16'],
-                      'stadium-poonthanam': ['L4', 'L10'],
-                      'stadium-mananchira': ['L5', 'L15'],
-                    };
-                    const linkIds = connectionToLinks[linkKey] || [];
-                    const roadName = ROAD_LINKS_METADATA[linkKey]?.name || linkKey;
+                  return activeBottlenecks.map((p: any) => {
+                    const roadName = linkToRoadMap[p.link]?.roadName || p.link;
+                    const measure = p.recommendedStrategy;
 
                     return (
-                      <div key={linkKey} className="bg-white/[0.02] border border-white/[0.04] p-3 rounded-lg space-y-2.5">
+                      <div key={p.link} className="bg-white/[0.02] border border-white/[0.04] p-3 rounded-lg space-y-1.5">
                         {/* Cause section */}
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <span className="text-[8.5px] font-mono text-red-400 font-bold uppercase tracking-wider block">CONGESTION CAUSE LINK</span>
+                            <span className="text-[8.5px] font-mono text-red-400 font-bold uppercase tracking-wider block">BOTTLENECK ROAD</span>
                             <span className="text-xs font-bold text-white truncate block">
-                              {roadName} <span className="text-[9px] font-mono text-orange-400 font-semibold bg-white/[0.05] px-1 rounded ml-1">({linkIds.join(', ')})</span>
+                              {roadName} <span className="text-[9px] font-mono text-orange-400 font-semibold bg-white/[0.05] px-1 rounded ml-1">({p.link})</span>
                             </span>
                           </div>
                           <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded uppercase border bg-red-500/10 text-red-400 border-red-500/30 shrink-0">
-                            {info.status.toUpperCase()}
+                            CRITICAL
                           </span>
                         </div>
 
-                        {/* Affected links section */}
-                        <div className="bg-red-500/[0.015] border border-red-500/10 p-2 rounded">
-                          <span className="text-[8px] font-mono text-gray-500 font-bold uppercase tracking-wider block mb-1">AFFECTED ADJACENT ROADS</span>
-                          <div className="text-[10px] text-gray-300 font-sans leading-relaxed">
-                            {(() => {
-                              const details = linkIds.map((id: string) => {
-                                const affIds = getAffectedLinks(id);
-                                const affRoadNames = affIds.map(affId => `${linkToRoadMap[affId]?.roadName || affId} (${affId})`);
-                                return Array.from(new Set(affRoadNames));
-                              }).flat();
-                              const uniqueDetails = Array.from(new Set(details));
-                              return uniqueDetails.join(', ') || 'None adjacent';
-                            })()}
+                        {/* Mitigation Measure section */}
+                        <div className="bg-orange-500/[0.015] border border-orange-500/10 p-2 rounded">
+                          <span className="text-[8px] font-mono text-gray-500 font-bold uppercase tracking-wider block mb-1">MITIGATION MEASURE</span>
+                          <div className="text-[10px] text-orange-300 font-sans leading-relaxed">
+                            {measure}
                           </div>
                         </div>
                       </div>
@@ -329,8 +355,8 @@ export default function Dashboard({
                 {[
                   { label: 'Average Speed', value: `${Math.round(nodes.reduce((s, n) => s + n.avgSpeed, 0) / nodes.length)} km/h`, color: '#22C55E' },
                   { label: 'Average Density', value: `${Math.round(nodes.reduce((s, n) => s + n.density, 0) / nodes.length)}%`, color: '#F97316' },
-                  { label: 'Network Congestion Index', value: `${Object.values(linkStatuses || {}).filter((l: any) => l.status === 'critical' || l.status === 'heavy').length} / ${Object.keys(linkStatuses || {}).length} links`, color: '#EF4444' },
-                  { label: 'Active Link Count', value: `${Object.keys(linkStatuses || {}).length} monitored links`, color: '#3B82F6' },
+                  {label: 'Network Congestion Index', value: `${Object.values(effectiveLinkStatuses).filter((l: any) => l.status === 'critical' || l.status === 'heavy').length} / ${Object.keys(effectiveLinkStatuses).length} links`, color: '#EF4444'},
+                  {label: 'Active Link Count', value: `${Object.keys(effectiveLinkStatuses).length} monitored links`, color: '#3B82F6'},
                 ].map(item => (
                   <div key={item.label} className="bg-white/[0.02] border border-white/[0.04] p-3 rounded-lg flex flex-col justify-between">
                     <span className="text-[10px] text-gray-400 font-sans tracking-wide uppercase font-semibold leading-normal">{item.label}</span>

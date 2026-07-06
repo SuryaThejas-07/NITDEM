@@ -214,10 +214,14 @@ function syncO1() {
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-        const mapped = jsonData.map(row => {
-          const rawLink = String(row['Link ID'] || '').trim();
-          const link = rawLink.startsWith('L') ? rawLink : `L${rawLink}`;
-          
+        const validRows = jsonData.filter(row => {
+          const at = String(row['Predicted at'] || '').trim();
+          return at !== '' && at !== 'undefined';
+        });
+
+        // Group rows by Predicted at timestamp
+        const groupedByTime = {};
+        validRows.forEach(row => {
           let predAtStr = String(row['Predicted at'] || '').trim();
           
           if (!isNaN(Number(predAtStr)) && Number(predAtStr) > 0 && Number(predAtStr) < 1) {
@@ -228,31 +232,53 @@ function syncO1() {
             predAtStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
           }
           
+          if (!groupedByTime[predAtStr]) {
+            groupedByTime[predAtStr] = [];
+          }
+          groupedByTime[predAtStr].push(row);
+        });
+
+        const mapped = [];
+        const linkIds = ['L1', 'L19', 'L13', 'L6', 'L17', 'L18', 'L3', 'L16'];
+
+        Object.entries(groupedByTime).forEach(([predAtStr, rows]) => {
           const timeParts = predAtStr.split(':').map(Number);
           const h = timeParts[0] || 0;
           const m = timeParts[1] || 0;
           const s = timeParts[2] || 0;
           const predictionHorizonSec = h * 3600 + m * 60 + s;
 
-          const isBottleneck = row['Bottleneck'] === 1 || row['Bottleneck'] === '1';
-          const severityLevel = isBottleneck ? 'CRITICAL' : 'LOW';
-          const severityIndex = isBottleneck ? 85.0 : 10.0;
+          linkIds.forEach(link => {
+            let strategy = 'No measures required';
+            let isBottleneck = false;
 
-          const rawStrategy = String(row['Management Strategy'] || '').trim();
-          const recommendedStrategy = (rawStrategy === '' || rawStrategy === '0') ? 'No measures required' : rawStrategy;
+            for (const r of rows) {
+              const val = r[link];
+              if (val && val !== '0' && val !== 0 && String(val).trim() !== '' && String(val).trim().toLowerCase() !== 'no measures required') {
+                strategy = String(val).trim();
+                isBottleneck = true;
+                break;
+              }
+            }
 
-          return {
-            predictionHorizonSec,
-            link,
-            queueTrue: isBottleneck ? 0.35 : 0.05,
-            queuePred: isBottleneck ? 0.85 : 0.12,
-            delayTrue: isBottleneck ? 15.0 : 2.5,
-            delayPred: isBottleneck ? 55.0 : 4.8,
-            predictionHorizonMin: 20,
-            severityIndex,
-            severityLevel,
-            recommendedStrategy
-          };
+            const markedAsBottleneck = rows.some(r => String(r['Link ID']).trim() === link && (r['Bottleneck'] === 1 || r['Bottleneck'] === '1'));
+
+            const severityLevel = (isBottleneck || markedAsBottleneck) ? 'CRITICAL' : 'LOW';
+            const severityIndex = (isBottleneck || markedAsBottleneck) ? 85.0 : 10.0;
+
+            mapped.push({
+              predictionHorizonSec,
+              link,
+              queueTrue: (isBottleneck || markedAsBottleneck) ? 0.35 : 0.05,
+              queuePred: (isBottleneck || markedAsBottleneck) ? 0.85 : 0.12,
+              delayTrue: (isBottleneck || markedAsBottleneck) ? 15.0 : 2.5,
+              delayPred: (isBottleneck || markedAsBottleneck) ? 55.0 : 4.8,
+              predictionHorizonMin: 20,
+              severityIndex,
+              severityLevel,
+              recommendedStrategy: strategy
+            });
+          });
         });
 
         fs.writeFileSync(tmpJson, JSON.stringify(mapped));
@@ -449,7 +475,13 @@ function syncI2() {
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-        const mapped = jsonData.map(row => {
+        const validRows = jsonData.filter(row => {
+          const rawLink = String(row['Link ID'] || '').trim();
+          const predAtStr = String(row['Predicted at'] || '').trim();
+          return rawLink !== '' && predAtStr !== '';
+        });
+
+        const mapped = validRows.map(row => {
           const rawLink = String(row['Link ID'] || '').trim();
           const link = rawLink.startsWith('L') ? rawLink : `L${rawLink}`;
           

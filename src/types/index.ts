@@ -75,6 +75,7 @@ export interface Notification {
   timestamp: string;
   read: boolean;
   simulationTimeSec?: number;
+  linkId?: string;
 }
 
 export interface WeatherData {

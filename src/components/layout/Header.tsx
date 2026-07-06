@@ -8,13 +8,13 @@ interface HeaderProps {
   isDark: boolean;
   onToggleTheme: () => void;
   notifications: Notification[];
-  onNotificationClick: (id: string) => void;
+  onNotificationClick: (n: Notification) => void;
   unreadCount: number;
   currentRole: UserRole;
   onRoleChange: (role: UserRole) => void;
 }
 
-export default function Header({ isDark, onToggleTheme, notifications, unreadCount, currentRole, onRoleChange }: HeaderProps) {
+export default function Header({ isDark, onToggleTheme, notifications, unreadCount, currentRole, onRoleChange, onNotificationClick }: HeaderProps) {
   const [time, setTime] = useState(new Date());
   const [showNotifs, setShowNotifs] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -99,9 +99,16 @@ export default function Header({ isDark, onToggleTheme, notifications, unreadCou
               </div>
               <div className="max-h-64 overflow-y-auto">
                 {notifications.length === 0 ? (
-                  <div className="p-4 text-center text-xs text-gray-600">No active notifications</div>
+                   <div className="p-4 text-center text-xs text-gray-600">No active notifications</div>
                 ) : notifications.map(n => (
-                  <div key={n.id} className="px-3 py-2.5 border-b border-white/[0.04] hover:bg-white/[0.03]">
+                  <div 
+                    key={n.id} 
+                    onClick={() => {
+                      onNotificationClick(n);
+                      setShowNotifs(false);
+                    }}
+                    className="px-3 py-2.5 border-b border-white/[0.04] hover:bg-white/[0.03] cursor-pointer transition-colors"
+                  >
                     <div className="flex items-center gap-2 mb-0.5">
                       <span className={`text-[9px] font-mono font-bold ${
                         n.type === 'critical' ? 'text-red-400' :
@@ -109,7 +116,7 @@ export default function Header({ isDark, onToggleTheme, notifications, unreadCou
                         n.type === 'success' ? 'text-green-400' : 'text-blue-400'
                       }`}>{n.title}</span>
                     </div>
-                    <div className="text-xs text-gray-400">{n.message}</div>
+                    <div className="text-xs text-gray-400 leading-snug">{n.message}</div>
                     {n.tokenId && <div className="text-[10px] text-orange-400 font-mono mt-0.5">→ {n.tokenId}</div>}
                   </div>
                 ))}

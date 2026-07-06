@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Brain, Zap, Plane, AlertTriangle, Thermometer, Droplets, CloudRain, MapPin, TrendingUp, CheckCircle2, Sparkles, Activity, ArrowLeft, ChevronDown, ChevronUp, Siren, Clock } from 'lucide-react';
 import type { TrafficNode, Drone, PredictionWindow, RoadLinkMetadata, Incident, GCSLinkData, GCSPredictionData } from '../../types';
-import { linkToRoadMap, getAffectedLinks } from '../../hooks/useAppStore';
+import { getAffectedLinks } from '../../hooks/useAppStore';
+import { linkToRoadMap, linkToConnectionMap } from '../../hooks/linkMaps';
 import { 
   AI_RECOMMENDATIONS, 
   WEATHER, 
@@ -19,6 +20,7 @@ import { statusColor, statusLabel } from '../../utils';
 interface IntelPanelProps {
   selectedNode: TrafficNode | null;
   selectedLink: string | null;
+  selectedLinkId?: string | null;
   drones: Drone[];
   predictionWindow: PredictionWindow;
   nodes: TrafficNode[];
@@ -66,6 +68,7 @@ interface IntelPanelProps {
 export default function IntelPanel({ 
   selectedNode, 
   selectedLink, 
+  selectedLinkId = null,
   drones, 
   predictionWindow, 
   nodes, 
@@ -104,6 +107,14 @@ export default function IntelPanel({
 }: IntelPanelProps) {
   const [activeTab, setActiveTab] = useState<'live' | 'forecast20'>('live');
   const [expandedIncident, setExpandedIncident] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (predictionWindow === '20min') {
+      setActiveTab('forecast20');
+    } else {
+      setActiveTab('live');
+    }
+  }, [predictionWindow]);
   const recs = selectedNode ? (AI_RECOMMENDATIONS[selectedNode.id] || []) : [];
   const nearbyDrones = selectedNode
     ? drones.filter(d => d.location === selectedNode.name || d.targetNodeId === selectedNode.id)
@@ -321,6 +332,7 @@ export default function IntelPanel({
           <Forecast20Panel 
             selectedNode={selectedNode}
             selectedLink={selectedLink}
+            highlightLinkId={selectedLinkId}
             gcsPredictions={gcsPredictions}
             linkStatuses={linkStatuses}
             onSelectLink={onSelectLink}
@@ -994,6 +1006,7 @@ function suggestedMeasures(inc: Incident): string[] {
 interface Forecast20PanelProps {
   selectedNode: TrafficNode | null;
   selectedLink: string | null;
+  highlightLinkId?: string | null;
   gcsPredictions: GCSPredictionData[];
   linkStatuses: Record<string, any>;
   onSelectLink?: (linkId: string | null) => void;
@@ -1024,6 +1037,7 @@ interface Forecast20PanelProps {
 function Forecast20Panel({ 
   selectedNode, 
   selectedLink, 
+  highlightLinkId = null,
   gcsPredictions, 
   linkStatuses,
   onSelectLink,
@@ -1175,8 +1189,9 @@ function Forecast20Panel({
     const isBottleneck = forecast ? forecast.severityLevel === 'CRITICAL' : false;
     const rawStrategy = forecast ? forecast.recommendedStrategy : '';
     const strategy = (rawStrategy === '' || rawStrategy === '0' || !rawStrategy) ? 'No measures required' : rawStrategy;
+    const hasStrategy = strategy !== 'No measures required';
 
-    const affectedLinkIds = isBottleneck ? getAffectedLinks(linkId) : [];
+    const affectedLinkIds = hasStrategy ? getAffectedLinks(linkId) : [];
     const affectedRoadNames = affectedLinkIds.map(id => linkToRoadMap[id]?.roadName || id);
     const uniqueAffectedNames = Array.from(new Set(affectedRoadNames));
     
@@ -1184,7 +1199,11 @@ function Forecast20Panel({
       <div 
         key={linkId} 
         onClick={onClick}
-        className={`bg-white/[0.03] border border-white/[0.05] rounded-lg p-3 space-y-2 transition-all ${
+        className={`bg-white/[0.03] rounded-lg p-3 space-y-2 transition-all ${
+          linkId === highlightLinkId
+            ? 'border-2 border-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.55)] ring-1 ring-orange-500/50 scale-[1.01]'
+            : 'border border-white/[0.05]'
+        } ${
           onClick ? 'cursor-pointer hover:bg-white/[0.06] hover:border-white/[0.1]' : ''
         }`}
       >
@@ -1208,21 +1227,14 @@ function Forecast20Panel({
         </div>
         
         <div className={`p-2 rounded flex items-start gap-2 ${
-          isBottleneck ? 'bg-orange-500/10 border border-orange-500/20 text-orange-400' : 'bg-white/[0.02] border border-white/[0.04] text-gray-400'
+          hasStrategy ? 'bg-orange-500/10 border border-orange-500/20 text-orange-400' : 'bg-white/[0.02] border border-white/[0.04] text-gray-400'
         }`}>
-          <Zap className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${isBottleneck ? 'text-orange-400 animate-pulse' : 'text-gray-500'}`} />
+          <Zap className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${hasStrategy ? 'text-orange-400 animate-pulse' : 'text-gray-500'}`} />
           <div>
             <div className="text-[9px] font-mono font-bold uppercase tracking-wider">Management Strategy</div>
             <div className="text-xs text-gray-200 mt-0.5 leading-relaxed font-sans">{strategy}</div>
           </div>
         </div>
-
-        {isBottleneck && uniqueAffectedNames.length > 0 && (
-          <div className="bg-red-500/5 border border-red-500/10 p-2 rounded text-[10px] text-gray-400">
-            <span className="font-bold text-red-400 uppercase font-mono tracking-wider">Affected Adjacent Roads</span>
-            <div className="text-xs text-gray-300 mt-0.5 font-sans leading-snug">{uniqueAffectedNames.join(', ')}</div>
-          </div>
-        )}
       </div>
     );
   };
@@ -1416,11 +1428,17 @@ function Forecast20Panel({
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {activeNodeLinks.map(linkId => {
-                    const preds = gcsPredictions.filter(p => p.link === linkId);
-                    const forecast = findForecast(preds, elapsedSec);
-                    return renderLinkForecastCard(linkId, forecast);
-                  })}
+                  {[...activeNodeLinks]
+                    .sort((a, b) => {
+                      if (a === highlightLinkId) return -1;
+                      if (b === highlightLinkId) return 1;
+                      return 0;
+                    })
+                    .map(linkId => {
+                      const preds = gcsPredictions.filter(p => p.link === linkId);
+                      const forecast = findForecast(preds, elapsedSec);
+                      return renderLinkForecastCard(linkId, forecast);
+                    })}
                 </div>
               )}
             </div>
@@ -1429,7 +1447,11 @@ function Forecast20Panel({
 
         if (isLinkActive) {
           const mappedIds = connectionToLinks[selectedLink] || [];
-          const activeLinkForecasts = mappedIds.filter(l => allStgnnLinks.includes(l));
+          let activeLinkForecasts = mappedIds.filter(l => allStgnnLinks.includes(l));
+          
+          if (highlightLinkId && activeLinkForecasts.includes(highlightLinkId)) {
+            activeLinkForecasts = [highlightLinkId];
+          }
 
           return (
             <div className="space-y-2">
@@ -1447,11 +1469,17 @@ function Forecast20Panel({
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {activeLinkForecasts.map(linkId => {
-                    const preds = gcsPredictions.filter(p => p.link === linkId);
-                    const forecast = findForecast(preds, elapsedSec);
-                    return renderLinkForecastCard(linkId, forecast);
-                  })}
+                  {[...activeLinkForecasts]
+                    .sort((a, b) => {
+                      if (a === highlightLinkId) return -1;
+                      if (b === highlightLinkId) return 1;
+                      return 0;
+                    })
+                    .map(linkId => {
+                      const preds = gcsPredictions.filter(p => p.link === linkId);
+                      const forecast = findForecast(preds, elapsedSec);
+                      return renderLinkForecastCard(linkId, forecast);
+                    })}
                 </div>
               )}
             </div>

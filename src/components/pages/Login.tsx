@@ -12,18 +12,46 @@ export default function Login({ onLogin, onSuccess }: LoginProps) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [lockoutMsg, setLockoutMsg] = useState('Authentication Failed — Access Denied');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check rate limit/lockout
+    const lockoutUntilStr = localStorage.getItem('nitdem_lockout_until');
+    if (lockoutUntilStr) {
+      const lockoutUntil = parseInt(lockoutUntilStr, 10);
+      if (Date.now() < lockoutUntil) {
+        const remaining = Math.ceil((lockoutUntil - Date.now()) / 60000);
+        setStatus('error');
+        setLockoutMsg(`Authentication Locked — Too many failed attempts. Try again in ${remaining} min.`);
+        setTimeout(() => setStatus('idle'), 3000);
+        return;
+      }
+    }
+
     setStatus('loading');
     await new Promise(r => setTimeout(r, 1200));
     if (onLogin(username, password)) {
       setStatus('success');
+      localStorage.removeItem('nitdem_login_attempts');
+      localStorage.removeItem('nitdem_lockout_until');
       await new Promise(r => setTimeout(r, 1500));
       onSuccess();
     } else {
       setStatus('error');
-      setTimeout(() => setStatus('idle'), 2500);
+      const attemptsStr = localStorage.getItem('nitdem_login_attempts') || '0';
+      const newAttempts = parseInt(attemptsStr, 10) + 1;
+      if (newAttempts >= 5) {
+        const lockoutTime = Date.now() + 15 * 60 * 1000;
+        localStorage.setItem('nitdem_lockout_until', lockoutTime.toString());
+        localStorage.setItem('nitdem_login_attempts', '0');
+        setLockoutMsg('Authentication Locked — Too many failed attempts. Lockout active for 15 min.');
+      } else {
+        localStorage.setItem('nitdem_login_attempts', newAttempts.toString());
+        setLockoutMsg(`Authentication Failed — Access Denied (${5 - newAttempts} attempts remaining)`);
+      }
+      setTimeout(() => setStatus('idle'), 3000);
     }
   };
 
@@ -39,14 +67,14 @@ export default function Login({ onLogin, onSuccess }: LoginProps) {
       {/* Radial glow */}
       <div className="absolute inset-0 bg-gradient-radial from-orange-500/5 via-transparent to-transparent" 
         style={{ background: 'radial-gradient(ellipse at center, rgba(249,115,22,0.08) 0%, transparent 70%)' }} />
-
+ 
       {/* Scanning line animation */}
       <motion.div
         className="absolute inset-x-0 h-px bg-gradient-to-r from-transparent via-orange-500/60 to-transparent"
         animate={{ y: ['-100vh', '100vh'] }}
         transition={{ duration: 5, repeat: Infinity, ease: 'linear' }}
       />
-
+ 
       <motion.div
         initial={{ opacity: 0, y: 30, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -85,7 +113,7 @@ export default function Login({ onLogin, onSuccess }: LoginProps) {
                 <Cpu className="w-3 h-3 text-green-400" />
               </div>
             </div>
-
+ 
             {/* Auth form */}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
@@ -120,7 +148,7 @@ export default function Login({ onLogin, onSuccess }: LoginProps) {
                   </button>
                 </div>
               </div>
-
+ 
               <AnimatePresence mode="wait">
                 {status === 'error' && (
                   <motion.div
@@ -128,7 +156,7 @@ export default function Login({ onLogin, onSuccess }: LoginProps) {
                     className="flex items-center gap-2 text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2"
                   >
                     <Shield className="w-4 h-4 shrink-0" />
-                    <span className="text-xs font-mono">Authentication Failed — Access Denied</span>
+                    <span className="text-xs font-mono">{lockoutMsg}</span>
                   </motion.div>
                 )}
                 {status === 'success' && (

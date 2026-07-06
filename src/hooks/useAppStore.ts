@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import type { Page, TrafficNode, Drone, Incident, Token, Notification, PlannedEvent, DroneAnomaly, SimulationResult, SimulationAction, PredictionWindow, UserRole } from '../types';
+import type { Page, TrafficNode, Drone, Incident, Token, Notification, PlannedEvent, EventType, DroneAnomaly, SimulationResult, SimulationAction, PredictionWindow, UserRole } from '../types';
 import { TRAFFIC_NODES, INITIAL_DRONES, SAMPLE_TOKENS, DRONE_ANOMALIES, runSimulation } from '../data/constants';
 import { parseTelemetryCSV, parseDensityCSV, parseXLSXData, parsePredictionsCSV, parseLink1CSV, parseCoordinatesCSV, CSVTelemetry, CSVDensityFrame, GCSLinkData, GCSPredictionData } from '../utils/csvParser';
+import { linkToRoadMap, linkToConnectionMap } from './linkMaps';
 
 const junctionMap: Record<string, string> = {
   'Mavoor Road Junction': 'mavoor',
@@ -13,35 +14,6 @@ const junctionMap: Record<string, string> = {
   'Palayam Junction': 'palayam',
   'Midtown Junction': 'midtown',
   'East Bypass Junction': 'east_bypass',
-};
-
-export const linkToRoadMap: Record<string, { roadName: string; lat: number; lng: number; junction: string }> = {
-  L1: { roadName: 'Mini Bypass Road (North)', lat: 11.2569, lng: 75.7919, junction: 'Arayidathupalam Junction' },
-  L18: { roadName: 'Mini Bypass Road (North)', lat: 11.2569, lng: 75.7919, junction: 'Arayidathupalam Junction' },
-  L2: { roadName: 'Mini Bypass Road (South)', lat: 11.2539, lng: 75.79255, junction: 'Midtown Junction' },
-  L24: { roadName: 'Mini Bypass Road (South)', lat: 11.2539, lng: 75.79255, junction: 'Midtown Junction' },
-  L3: { roadName: 'Puthiyara Road', lat: 11.25525, lng: 75.7890, junction: 'Stadium Junction' },
-  L16: { roadName: 'Puthiyara Road', lat: 11.25525, lng: 75.7890, junction: 'Stadium Junction' },
-  L4: { roadName: 'Rammohan Road', lat: 11.25335, lng: 75.78685, junction: 'Stadium Junction' },
-  L10: { roadName: 'Rammohan Road', lat: 11.25335, lng: 75.78685, junction: 'Stadium Junction' },
-  L5: { roadName: 'Pavamani Road', lat: 11.25477, lng: 75.78389, junction: 'Stadium Junction' },
-  L15: { roadName: 'Pavamani Road', lat: 11.25477, lng: 75.78389, junction: 'Stadium Junction' },
-  L6: { roadName: 'Rajaji Road', lat: 11.25725, lng: 75.7857, junction: 'Bus Stand Junction' },
-  L17: { roadName: 'Rajaji Road', lat: 11.25725, lng: 75.7857, junction: 'Bus Stand Junction' },
-  L7: { roadName: 'Poonthanam Link Road', lat: 11.2520, lng: 75.7904, junction: 'East Bypass Junction' },
-  L20: { roadName: 'Poonthanam Link Road', lat: 11.2520, lng: 75.7904, junction: 'East Bypass Junction' },
-  L8: { roadName: 'Bank Road', lat: 11.25157, lng: 75.78279, junction: 'Palayam Junction' },
-  L22: { roadName: 'Bank Road', lat: 11.25157, lng: 75.78279, junction: 'Palayam Junction' },
-  L9: { roadName: 'M.M Ali Road', lat: 11.25015, lng: 75.78575, junction: 'Poonthanam Junction' },
-  L21: { roadName: 'M.M Ali Road', lat: 11.25015, lng: 75.78575, junction: 'Poonthanam Junction' },
-  L11: { roadName: 'Mavoor Road (Outer)', lat: 11.25895, lng: 75.78285, junction: 'Mavoor Road Junction' },
-  L23: { roadName: 'Mavoor Road (Outer)', lat: 11.25895, lng: 75.78285, junction: 'Mavoor Road Junction' },
-  L12: { roadName: 'Mavoor Road (Outer)', lat: 11.25895, lng: 75.78285, junction: 'Mavoor Road Junction' },
-  L25: { roadName: 'Mavoor Road (Outer)', lat: 11.25895, lng: 75.78285, junction: 'Mavoor Road Junction' },
-  L13: { roadName: 'Mavoor Road (Middle)', lat: 11.2589, lng: 75.7886, junction: 'Bus Stand Junction' },
-  L19: { roadName: 'Mavoor Road (Middle)', lat: 11.2589, lng: 75.7886, junction: 'Bus Stand Junction' },
-  L14: { roadName: 'Mavoor Road (Inner)', lat: 11.25647, lng: 75.78103, junction: 'Mavoor Road Junction' },
-  L26: { roadName: 'Mavoor Road (Inner)', lat: 11.25647, lng: 75.78103, junction: 'Mavoor Road Junction' },
 };
 
 const zoneCoordinates: Record<string, { lat: number; lng: number }> = {
@@ -79,6 +51,14 @@ function generateTokenId(): string {
   return `TK-${num}`;
 }
 
+function sanitizeInput(str: string | undefined, maxLength = 500): string {
+  if (!str || typeof str !== 'string') return '';
+  // 1. Strip any HTML tags to prevent XSS
+  const clean = str.replace(/<[^>]*>/g, '');
+  // 2. Truncate to maximum length to prevent DOS/overflow
+  return clean.substring(0, maxLength).trim();
+}
+
 export function getAffectedLinks(linkId: string): string[] {
   const nodeLinkConnections: Record<string, string[]> = {
     mavoor: ['L11', 'L23', 'L12', 'L25', 'L14', 'L26'],
@@ -107,17 +87,20 @@ export function useAppStore() {
   const [currentPage, setCurrentPage] = useState<Page>('map');
   const [selectedNode, setSelectedNode] = useState<TrafficNode | null>(null);
   const [selectedLink, setSelectedLink] = useState<string | null>(null);
+  const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
   const [selectedDroneId, setSelectedDroneId] = useState<string | null>('alpha');
   const [currentRole, setCurrentRole] = useState<UserRole>('supervisor');
 
   const selectNode = useCallback((node: TrafficNode | null) => {
     setSelectedNode(prev => prev?.id === node?.id ? null : node);
     setSelectedLink(null);
+    setSelectedLinkId(null);
   }, []);
 
   const selectLink = useCallback((linkId: string | null) => {
     setSelectedLink(prev => prev === linkId ? null : linkId);
     setSelectedNode(null);
+    setSelectedLinkId(null);
   }, []);
   const [isDark, setIsDark] = useState(true);
   const [nodes, setNodes] = useState<TrafficNode[]>(TRAFFIC_NODES);
@@ -222,8 +205,9 @@ export function useAppStore() {
   // Load new JSON datasets (I1a.json and O1.json) and poll every 5 seconds
   useEffect(() => {
     const fetchNewDatasets = () => {
+      const ts = Date.now();
       // Load I1a.json for coordinates and traffic metrics (Intelligent Map)
-      fetch('/I1a.json')
+      fetch(`/I1a.json?t=${ts}`)
         .then(r => {
           if (!r.ok) throw new Error(`Failed to fetch /I1a.json: status ${r.status}`);
           return r.json();
@@ -238,7 +222,7 @@ export function useAppStore() {
         .catch(err => console.error("Error loading I1a.json", err));
 
       // Load O1.json for gcsPredictions (20 min forecast)
-      fetch('/O1.json')
+      fetch(`/O1.json?t=${ts}`)
         .then(r => {
           if (!r.ok) throw new Error(`Failed to fetch /O1.json: status ${r.status}`);
           return r.json();
@@ -251,7 +235,7 @@ export function useAppStore() {
         .catch(err => console.error("Error loading O1.json", err));
 
       // Load I2.json for gcsShortTermPredictions
-      fetch('/I2.json')
+      fetch(`/I2.json?t=${ts}`)
         .then(r => {
           if (!r.ok) throw new Error(`Failed to fetch /I2.json: status ${r.status}`);
           return r.json();
@@ -512,10 +496,17 @@ export function useAppStore() {
       const isPrediction = predictionWindow !== 'current';
 
       if (isPrediction) {
+        const parts = selectedTime.split(':').map(Number);
+        const targetSec = (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
+        const bucketStartSec = Math.floor(targetSec / 1200) * 1200;
+
         const predRecords = gcsPredictions.filter(p => p.link === lOut || p.link === lIn);
         if (predRecords.length > 0) {
-          const maxHorizon = Math.max(...predRecords.map(p => p.predictionHorizonSec));
-          const targetRecords = predRecords.filter(p => p.predictionHorizonSec === maxHorizon);
+          let targetRecords = predRecords.filter(p => p.predictionHorizonSec === bucketStartSec);
+          if (targetRecords.length === 0) {
+            const maxHorizon = Math.max(...predRecords.map(p => p.predictionHorizonSec));
+            targetRecords = predRecords.filter(p => p.predictionHorizonSec === maxHorizon);
+          }
           
           const avgQueuePred = targetRecords.reduce((sum, p) => sum + p.queuePred, 0) / targetRecords.length;
           const avgDelayPred = targetRecords.reduce((sum, p) => sum + p.delayPred, 0) / targetRecords.length;
@@ -534,7 +525,7 @@ export function useAppStore() {
           };
           
           const status = statusMap[severity];
-          const density = Math.min(100, Math.max(5, Math.round(avgQueuePred * 100)));
+          const density = Math.min(100, Math.max(5, Math.round(avgQueuePred * 8)));
           const speed = Math.max(10, Math.round(50 - (density * 0.4)));
           const volume = Math.round(density * 12);
           const travelTime = parseFloat((0.8 * 60 / speed + avgDelayPred / 60).toFixed(1));
@@ -543,9 +534,9 @@ export function useAppStore() {
         } else {
           const seedVal = Math.sin(playbackIndex / 3 + key.charCodeAt(0));
           const density = Math.round(45 + seedVal * 20);
-          const status = density >= 85 ? 'critical' :
-                         density >= 65 ? 'heavy' :
-                         density >= 40 ? 'moderate' : 'free';
+          const status = density >= 70 ? 'critical' :
+                         density >= 55 ? 'heavy' :
+                         density >= 35 ? 'moderate' : 'free';
           const speed = Math.round(45 - seedVal * 12);
           const volume = Math.round(180 + seedVal * 40);
           const travelTime = parseFloat((0.8 * 60 / speed + (status === 'critical' ? 2 : 1)).toFixed(1));
@@ -554,22 +545,35 @@ export function useAppStore() {
         }
       } else {
         if (records.length > 0) {
-          const avgOccupancy = records.reduce((sum, r) => sum + r.occupancy, 0) / records.length;
+          // Calculate status for each direction/link separately to catch directional bottlenecks
+          const linkDetails = records.map(r => {
+            const dens = Math.max(5, Math.min(100, Math.round(
+              isCoordsActive ? r.occupancy : (r.occupancy * 100)
+            )));
+            const stat: 'free' | 'moderate' | 'heavy' | 'critical' = 
+              dens >= 70 ? 'critical' :
+              dens >= 55 ? 'heavy' :
+              dens >= 35 ? 'moderate' : 'free';
+            return { stat, dens, r };
+          });
+
+          // Determine corridor worst severity level
+          const statusOrder = { free: 0, moderate: 1, heavy: 2, critical: 3 } as const;
+          let worstLink = linkDetails[0];
+          for (const ld of linkDetails) {
+            if (statusOrder[ld.stat] > statusOrder[worstLink.stat]) {
+              worstLink = ld;
+            }
+          }
+
           const avgSpeed = Math.round(records.reduce((sum, r) => sum + r.speed, 0) / records.length);
           const totalVolume = records.reduce((sum, r) => sum + r.volume, 0);
           const avgQueueLength = records.reduce((sum, r) => sum + r.queueLength, 0) / records.length;
           const avgTravelTime = records.reduce((sum, r) => sum + r.travelTime, 0) / records.length;
 
-          const density = Math.max(5, Math.min(100, Math.round(
-            isCoordsActive ? avgOccupancy : (avgOccupancy * 100)
-          )));
-          const status = density >= 85 ? 'critical' :
-                         density >= 65 ? 'heavy' :
-                         density >= 40 ? 'moderate' : 'free';
-
           newStatuses[key] = {
-            status,
-            density,
+            status: worstLink.stat,
+            density: Math.round(linkDetails.reduce((sum, ld) => sum + ld.dens, 0) / linkDetails.length),
             speed: avgSpeed || 35,
             volume: totalVolume || 150,
             travelTime: parseFloat(avgTravelTime.toFixed(1)) || 1.2,
@@ -578,9 +582,9 @@ export function useAppStore() {
         } else {
           const seedVal = Math.sin(playbackIndex / 4 + key.charCodeAt(0));
           const density = Math.round(25 + seedVal * 10);
-          const status = density >= 85 ? 'critical' :
-                         density >= 65 ? 'heavy' :
-                         density >= 40 ? 'moderate' : 'free';
+          const status = density >= 70 ? 'critical' :
+                         density >= 55 ? 'heavy' :
+                         density >= 35 ? 'moderate' : 'free';
           const speed = Math.round(45 - seedVal * 8);
           const volume = Math.round(100 + seedVal * 30);
           const travelTime = parseFloat((0.6 * 60 / speed).toFixed(1));
@@ -638,9 +642,9 @@ export function useAppStore() {
         )));
         const vehicleCount = Math.round(totalVolume * 2);
         const status: 'free' | 'moderate' | 'heavy' | 'critical' = 
-                       density >= 85 ? 'critical' :
-                       density >= 65 ? 'heavy' :
-                       density >= 40 ? 'moderate' : 'free';
+                       density >= 70 ? 'critical' :
+                       density >= 55 ? 'heavy' :
+                       density >= 35 ? 'moderate' : 'free';
 
         baseNodeData = {
           ...node,
@@ -839,9 +843,13 @@ export function useAppStore() {
     
     // Add to transient toasts list
     setToasts(prev => [n, ...prev]);
-    setTimeout(() => {
-      setToasts(prev => prev.filter(x => x.id !== n.id));
-    }, 8000);
+    
+    // Only auto-dismiss transient messages that do NOT represent active 20-min forecasts
+    if (n.simulationTimeSec === undefined) {
+      setTimeout(() => {
+        setToasts(prev => prev.filter(x => x.id !== n.id));
+      }, 8000);
+    }
   }, []);
 
   // Trigger alert popup and notification for 20-min forecasts requiring a management strategy
@@ -858,45 +866,41 @@ export function useAppStore() {
     // Avoid duplicate triggers for the same time bucket
     if (bucketStartSec === lastNotifiedBucketSec) return;
 
-    // Find all critical bottleneck links in O1 predictions for this target time bucket
-    const activePreds = gcsPredictions.filter(p => p.predictionHorizonSec === bucketStartSec && p.severityLevel === 'CRITICAL');
+    // Find all predictions in O1 for this target time bucket
+    const activePreds = gcsPredictions.filter(p => p.predictionHorizonSec === bucketStartSec);
     
     // Filter for links that actually require a management strategy (i.e. not empty and not "No measures required")
     const linksRequiringMeasures = activePreds.filter(p => {
       const s = p.recommendedStrategy;
-      return s && s !== '0' && s !== 'No measures required';
+      return s && s !== '0' && s !== 'No measures required' && s !== 'No Measures Required';
     });
 
-    if (linksRequiringMeasures.length > 0) {
-      const formatSecToTime = (totalSec: number) => {
-        const h = Math.floor(totalSec / 3600);
-        const m = Math.floor((totalSec % 3600) / 60);
-        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-      };
+    // Roll over and clear previous 20-min forecast toasts upon entering a new 20-min interval block
+    setToasts(prev => prev.filter(t => t.simulationTimeSec === undefined));
 
-      const timeStr = formatSecToTime(bucketStartSec);
-      
+    if (linksRequiringMeasures.length > 0) {
       linksRequiringMeasures.forEach(item => {
         const linkId = item.link;
-        const roadName = linkToRoadMap[linkId]?.roadName || `Link ${linkId}`;
         const strategy = item.recommendedStrategy;
-        const affectedLinkIds = getAffectedLinks(linkId);
-        const affectedRoadNames = affectedLinkIds.map(id => linkToRoadMap[id]?.roadName || id);
-        const uniqueAffectedNames = Array.from(new Set(affectedRoadNames));
         
-        const message = `Bottleneck predicted on ${roadName} (${linkId}) at ${timeStr}. Strategy: ${strategy}. Affected adjacent roads: ${uniqueAffectedNames.join(', ') || 'none'}.`;
-
-        addNotification({
-          type: 'critical',
-          title: `⚠️ TRAFFIC MEASURE REQUIRED: ${linkId}`,
-          message,
-          simulationTimeSec: bucketStartSec,
-        });
+        const alreadyExists = notifications.some(
+          n => n.linkId === linkId && n.simulationTimeSec === bucketStartSec
+        );
+        
+        if (!alreadyExists) {
+          addNotification({
+            type: 'critical',
+            title: `⚠️ MITIGATION REQUIRED: ${linkId}`,
+            message: `Link: ${linkId}. Measure: ${strategy}.`,
+            simulationTimeSec: bucketStartSec,
+            linkId,
+          });
+        }
       });
 
       setLastNotifiedBucketSec(bucketStartSec);
     }
-  }, [selectedTime, gcsPredictions, isAuthenticated, lastNotifiedBucketSec, addNotification]);
+  }, [selectedTime, gcsPredictions, isAuthenticated, lastNotifiedBucketSec, notifications, addNotification]);
 
   const createToken = useCallback((data: Omit<Token, 'id' | 'timestamp'>) => {
     let lat = data.lat;
@@ -968,11 +972,18 @@ export function useAppStore() {
   }, [addNotification]);
 
   const logIncident = useCallback((data: Omit<Incident, 'id' | 'timestamp' | 'tokenId' | 'status'>) => {
+    const sanitizedType = sanitizeInput(data.type, 100);
+    const sanitizedLocation = sanitizeInput(data.location, 100);
+    const sanitizedDescription = sanitizeInput(data.description, 300);
+    const sanitizedPriority = (['low', 'medium', 'high', 'critical'].includes(data.priority) ? data.priority : 'medium') as Incident['priority'];
+    const sanitizedNearestJunction = data.nearestJunction ? sanitizeInput(data.nearestJunction, 100) : undefined;
+    const sanitizedAffectedRoads = data.affectedRoads ? data.affectedRoads.map(r => sanitizeInput(r, 100)) : undefined;
+
     let lat = data.lat;
     let lng = data.lng;
     
-    if (!lat && !lng && data.location) {
-      const coords = getCoordinatesForLocation(data.location);
+    if (!lat && !lng && sanitizedLocation) {
+      const coords = getCoordinatesForLocation(sanitizedLocation);
       if (coords) {
         lat = coords.lat;
         lng = coords.lng;
@@ -980,17 +991,22 @@ export function useAppStore() {
     }
 
     const token = createToken({
-      type: data.type,
-      priority: data.priority,
-      location: data.location,
+      type: sanitizedType,
+      priority: sanitizedPriority,
+      location: sanitizedLocation,
       status: 'pending',
-      description: data.description,
+      description: sanitizedDescription,
       generatedBy: 'Operator: admin',
       lat,
       lng,
     });
     const incident: Incident = {
-      ...data,
+      type: sanitizedType,
+      location: sanitizedLocation,
+      priority: sanitizedPriority,
+      description: sanitizedDescription,
+      nearestJunction: sanitizedNearestJunction,
+      affectedRoads: sanitizedAffectedRoads,
       lat,
       lng,
       id: Math.random().toString(36).slice(2),
@@ -1003,7 +1019,7 @@ export function useAppStore() {
       if (isAutoDispatch && lat && lng) {
         const closestDrone = findClosestAvailableDrone(lat, lng, drones);
         if (closestDrone) {
-          const targetNodeId = junctionMap[data.nearestJunction || ''] || 'stadium';
+          const targetNodeId = junctionMap[sanitizedNearestJunction || ''] || 'stadium';
           // Dispatch drone immediately
           setTimeout(() => {
             dispatchDrone(closestDrone.id, targetNodeId);
@@ -1014,7 +1030,7 @@ export function useAppStore() {
     });
 
     addNotification({
-      type: data.priority === 'critical' ? 'critical' : data.priority === 'high' ? 'warning' : 'info',
+      type: sanitizedPriority === 'critical' ? 'critical' : sanitizedPriority === 'high' ? 'warning' : 'info',
       title: `NEW INCIDENT — ${data.type.toUpperCase()}`,
       message: `${data.priority.toUpperCase()} priority at ${data.location}. ${data.description?.slice(0, 80) || ''}`,
       tokenId: token.id,
@@ -1058,11 +1074,21 @@ export function useAppStore() {
   }, [addNotification]);
 
   const updateIncident = useCallback((id: string, updates: Partial<Incident>) => {
+    const sanitizedUpdates: Partial<Incident> = {};
+    if (updates.type !== undefined) sanitizedUpdates.type = sanitizeInput(updates.type, 100);
+    if (updates.location !== undefined) sanitizedUpdates.location = sanitizeInput(updates.location, 100);
+    if (updates.priority !== undefined) {
+      sanitizedUpdates.priority = (['low', 'medium', 'high', 'critical'].includes(updates.priority) ? updates.priority : 'medium') as Incident['priority'];
+    }
+    if (updates.description !== undefined) sanitizedUpdates.description = sanitizeInput(updates.description, 300);
+    if (updates.lat !== undefined) sanitizedUpdates.lat = updates.lat;
+    if (updates.lng !== undefined) sanitizedUpdates.lng = updates.lng;
+
     setIncidents(prev => prev.map(inc => {
       if (inc.id === id) {
-        const merged = { ...inc, ...updates };
-        if (updates.location && !updates.lat && !updates.lng) {
-          const coords = getCoordinatesForLocation(updates.location);
+        const merged = { ...inc, ...sanitizedUpdates };
+        if (sanitizedUpdates.location && !sanitizedUpdates.lat && !sanitizedUpdates.lng) {
+          const coords = getCoordinatesForLocation(sanitizedUpdates.location);
           if (coords) {
             merged.lat = coords.lat;
             merged.lng = coords.lng;
@@ -1104,11 +1130,25 @@ export function useAppStore() {
   }, [addNotification]);
 
   const updateEvent = useCallback((id: string, updates: Partial<PlannedEvent>) => {
+    const sanitizedUpdates: Partial<PlannedEvent> = {};
+    if (updates.name !== undefined) sanitizedUpdates.name = sanitizeInput(updates.name, 100);
+    if (updates.type !== undefined) sanitizedUpdates.type = sanitizeInput(updates.type, 100) as EventType;
+    if (updates.zoneName !== undefined) sanitizedUpdates.zoneName = sanitizeInput(updates.zoneName, 100);
+    if (updates.description !== undefined) sanitizedUpdates.description = sanitizeInput(updates.description, 300);
+    if (updates.expectedAttendance !== undefined) {
+      sanitizedUpdates.expectedAttendance = Math.max(0, Math.min(1000000, Math.floor(Number(updates.expectedAttendance || 0))));
+    }
+    if (updates.startTime !== undefined) sanitizedUpdates.startTime = sanitizeInput(updates.startTime, 50);
+    if (updates.endTime !== undefined) sanitizedUpdates.endTime = sanitizeInput(updates.endTime, 50);
+    if (updates.date !== undefined) sanitizedUpdates.date = sanitizeInput(updates.date, 50);
+    if (updates.lat !== undefined) sanitizedUpdates.lat = updates.lat;
+    if (updates.lng !== undefined) sanitizedUpdates.lng = updates.lng;
+
     setEvents(prev => prev.map(ev => {
       if (ev.id === id) {
-        const merged = { ...ev, ...updates };
-        if (updates.zoneName && !updates.lat && !updates.lng) {
-          const coords = getCoordinatesForLocation(updates.zoneName);
+        const merged = { ...ev, ...sanitizedUpdates };
+        if (sanitizedUpdates.zoneName && !sanitizedUpdates.lat && !sanitizedUpdates.lng) {
+          const coords = getCoordinatesForLocation(sanitizedUpdates.zoneName);
           if (coords) {
             merged.lat = coords.lat;
             merged.lng = coords.lng;
@@ -1155,12 +1195,22 @@ export function useAppStore() {
   }, []);
 
   const createEvent = useCallback((data: Omit<PlannedEvent, 'id' | 'tokenId' | 'createdAt'>) => {
+    const sanitizedName = sanitizeInput(data.name, 100);
+    const sanitizedType = sanitizeInput(data.type, 100);
+    const sanitizedZoneName = sanitizeInput(data.zoneName, 100);
+    const sanitizedDescription = sanitizeInput(data.description, 300);
+    const sanitizedPriority = (['low', 'medium', 'high', 'critical'].includes(data.priority) ? data.priority : 'medium') as PlannedEvent['priority'];
+    const validatedAttendance = Math.max(0, Math.min(1000000, Math.floor(Number(data.expectedAttendance || 0))));
+    const sanitizedStartTime = sanitizeInput(data.startTime, 50);
+    const sanitizedEndTime = sanitizeInput(data.endTime, 50);
+    const sanitizedDate = sanitizeInput(data.date, 50);
+
     let lat = data.lat;
     let lng = data.lng;
     
     if (!lat && !lng) {
-      if (data.zoneName) {
-        const coords = getCoordinatesForLocation(data.zoneName);
+      if (sanitizedZoneName) {
+        const coords = getCoordinatesForLocation(sanitizedZoneName);
         if (coords) {
           lat = coords.lat;
           lng = coords.lng;
@@ -1178,17 +1228,27 @@ export function useAppStore() {
     }
 
     const token = createToken({
-      type: `Event: ${data.type}`,
-      priority: data.priority,
-      location: data.zoneName || `${lat?.toFixed(4)}, ${lng?.toFixed(4)}`,
+      type: `Event: ${sanitizedType}`,
+      priority: sanitizedPriority,
+      location: sanitizedZoneName || `${lat?.toFixed(4)}, ${lng?.toFixed(4)}`,
       status: 'pending',
-      description: `${data.name} — ${data.description || 'No additional details'}. Expected attendance: ${data.expectedAttendance.toLocaleString()}.`,
+      description: `${sanitizedName} — ${sanitizedDescription || 'No additional details'}. Expected attendance: ${validatedAttendance.toLocaleString()}.`,
       generatedBy: 'Operator: admin',
       lat,
       lng,
     });
     const event: PlannedEvent = {
-      ...data,
+      name: sanitizedName,
+      type: sanitizedType as EventType,
+      zoneName: sanitizedZoneName,
+      description: sanitizedDescription,
+      expectedAttendance: validatedAttendance,
+      startTime: sanitizedStartTime,
+      endTime: sanitizedEndTime,
+      date: sanitizedDate,
+      polygon: data.polygon,
+      priority: sanitizedPriority,
+      areaType: data.areaType || 'pin',
       id: Math.random().toString(36).slice(2),
       tokenId: token.id,
       createdAt: new Date().toISOString(),
@@ -1245,7 +1305,9 @@ export function useAppStore() {
   }, [createToken]);
 
   const login = useCallback((username: string, password: string) => {
-    return username === 'admin' && password === 'password';
+    const adminUser = import.meta.env.VITE_ADMIN_USER || 'admin';
+    const adminPass = import.meta.env.VITE_ADMIN_PASSWORD || 'password';
+    return username === adminUser && password === adminPass;
   }, []);
 
   const logout = useCallback(() => {
@@ -1253,8 +1315,12 @@ export function useAppStore() {
     setCurrentPage('map');
     setSelectedNode(null);
     setSelectedLink(null);
+    setSelectedLinkId(null);
     setSelectedDroneId('alpha');
     setCurrentRole('supervisor');
+    setLastNotifiedBucketSec(null);
+    setNotifications([]);
+    setToasts([]);
   }, []);
 
   const dismissNotification = useCallback((id: string) => {
@@ -1274,15 +1340,27 @@ export function useAppStore() {
     return notifications.filter(n => {
       if (n.simulationTimeSec === undefined) return true;
       const diff = currentSimulationSec - n.simulationTimeSec;
-      return diff >= 0 && diff <= 300; // past 5 minutes and present time
+      return diff >= 0; // Keep all occurred notifications in the dropdown box history
     });
   }, [notifications, currentSimulationSec]);
+
+  const selectLinkFromNotification = useCallback((linkId: string) => {
+    const connectionKey = linkToConnectionMap[linkId];
+    if (connectionKey) {
+      setSelectedLink(connectionKey);
+      setSelectedLinkId(linkId);
+      setSelectedNode(null);
+      setPredictionWindow('20min');
+      setCurrentPage('map');
+    }
+  }, []);
 
   return {
     isAuthenticated, setIsAuthenticated,
     currentPage, setCurrentPage,
     selectedNode, setSelectedNode: selectNode,
     selectedLink, setSelectedLink: selectLink,
+    selectedLinkId, setSelectedLinkId,
     selectedDroneId, setSelectedDroneId,
     currentRole, setCurrentRole,
     updateIncidentStatus,
@@ -1334,6 +1412,7 @@ export function useAppStore() {
     playbackSpeed,
     setPlaybackSpeed,
     coordsLinkData,
+    coordsByTimestamp,
     isWhatIfActive,
     setIsWhatIfActive,
     whatIfLanesBlocked,
@@ -1346,5 +1425,6 @@ export function useAppStore() {
     setIsRetimingApplied,
     toasts,
     dismissToast,
+    selectLinkFromNotification,
   };
 }

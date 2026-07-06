@@ -45,12 +45,7 @@ export default function IncidentNotificationPanel({
   currentRole,
   isDark
 }: IncidentNotificationPanelProps) {
-  const [isOpen, setIsOpen] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return window.innerWidth >= 1024;
-    }
-    return true;
-  });
+  const [isOpen, setIsOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Calculate priority score out of 100

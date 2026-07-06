@@ -22,7 +22,8 @@ import DroneFeed from './components/pages/DroneFeed';
 import IncidentNotificationPanel from './components/layout/IncidentNotificationPanel';
 import TemporalControls from './components/layout/TemporalControls';
 import { useAppStore } from './hooks/useAppStore';
-import type { Page } from './types';
+import { linkToConnectionMap } from './hooks/linkMaps';
+import type { Page, Notification } from './types';
 
 const PAGE_TITLES: Record<Page, string> = {
   dashboard: 'Operations Dashboard',
@@ -58,6 +59,12 @@ export default function App() {
     store.setCurrentPage('history');
   };
 
+  const handleNotificationClick = (n: Notification) => {
+    if (n.linkId && store.selectLinkFromNotification) {
+      store.selectLinkFromNotification(n.linkId);
+    }
+  };
+
   const renderPage = () => {
     switch (store.currentPage) {
       case 'dashboard':
@@ -82,6 +89,10 @@ export default function App() {
             isRetimingApplied={store.isRetimingApplied}
             setIsRetimingApplied={store.setIsRetimingApplied}
             linkStatuses={store.linkStatuses}
+            notifications={store.notifications}
+            predictionWindow={store.predictionWindow}
+            selectedTime={store.selectedTime}
+            gcsPredictions={store.gcsPredictions}
           />
         );
       case 'map':
@@ -114,8 +125,9 @@ export default function App() {
         return (
           <AIAnalytics
             nodes={store.nodes}
-            telemetryLogs={store.telemetryLogs}
-            predictionLogs={store.predictionLogs}
+            coordsByTimestamp={store.coordsByTimestamp}
+            gcsPredictions={store.gcsPredictions}
+            uniqueTimestamps={store.uniqueTimestamps}
             playbackIndex={store.playbackIndex}
           />
         );
@@ -210,7 +222,7 @@ export default function App() {
               isDark={store.isDark}
               onToggleTheme={() => store.setIsDark(!store.isDark)}
               notifications={store.notifications}
-              onNotificationClick={store.dismissNotification}
+              onNotificationClick={handleNotificationClick}
               unreadCount={store.notifications.length}
               currentRole={store.currentRole}
               onRoleChange={store.setCurrentRole}
@@ -244,6 +256,7 @@ export default function App() {
                   nodes={store.nodes}
                   selectedNode={store.selectedNode}
                   selectedLink={store.selectedLink}
+                  selectedLinkId={store.selectedLinkId}
                   drones={store.drones}
                   predictionWindow={store.predictionWindow}
                   linkStatuses={store.linkStatuses}
@@ -308,6 +321,7 @@ export default function App() {
                           nodes={store.nodes}
                           selectedNode={store.selectedNode}
                           selectedLink={store.selectedLink}
+                          selectedLinkId={store.selectedLinkId}
                           drones={store.drones}
                           predictionWindow={store.predictionWindow}
                           linkStatuses={store.linkStatuses}
@@ -369,6 +383,7 @@ export default function App() {
         notifications={store.toasts}
         onDismiss={store.dismissToast}
         onViewToken={handleViewToken}
+        onNotificationClick={handleNotificationClick}
       />
     </div>
   );

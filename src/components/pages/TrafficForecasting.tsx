@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TrendingUp, Play, CheckCircle, AlertTriangle, Plane, MapPin, Users, Brain } from 'lucide-react';
-import { useAppStore, linkToRoadMap, getAffectedLinks } from '../../hooks/useAppStore';
+import { useAppStore, getAffectedLinks } from '../../hooks/useAppStore';
+import { linkToRoadMap } from '../../hooks/linkMaps';
 
 const EVENTS = [
   { id: 'football', label: 'EMS Stadium Football Match', icon: '⚽', expectedAttendance: 25000 },
@@ -70,11 +71,14 @@ export default function TrafficForecasting() {
     const predictions = store.gcsPredictions || [];
     const matchedO1 = predictions.filter((p: any) => p.predictionHorizonSec === targetSec);
 
-    // Find bottleneck links
+    // Find active links needing management or experiencing bottlenecks
     const bottleneckI2 = matchedI2.filter((p: any) => p.isBottleneck);
-    const bottleneckO1 = matchedO1.filter((p: any) => p.severityLevel === 'CRITICAL');
+    const bottleneckO1 = matchedO1.filter((p: any) => 
+      p.severityLevel === 'CRITICAL' || 
+      (p.recommendedStrategy && p.recommendedStrategy !== '0' && p.recommendedStrategy !== 'No measures required' && p.recommendedStrategy !== 'No Measures Required')
+    );
 
-    // Combine unique bottleneck link IDs
+    // Combine unique active link IDs
     const bottleneckLinkIds = Array.from(new Set([
       ...bottleneckI2.map((p: any) => p.link),
       ...bottleneckO1.map((p: any) => p.link)

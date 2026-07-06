@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Brain, Cpu, Zap, Activity } from 'lucide-react';
 import {
@@ -7,8 +8,9 @@ import type { TrafficNode } from '../../types';
 
 interface AIAnalyticsProps {
   nodes: TrafficNode[];
-  telemetryLogs?: any[];
-  predictionLogs?: any[];
+  coordsByTimestamp?: Record<string, any[]>;
+  gcsPredictions?: any[];
+  uniqueTimestamps?: string[];
   playbackIndex?: number;
 }
 
@@ -21,8 +23,9 @@ const ACCURACY = [
 
 export default function AIAnalytics({
   nodes,
-  telemetryLogs,
-  predictionLogs,
+  coordsByTimestamp,
+  gcsPredictions,
+  uniqueTimestamps,
   playbackIndex
 }: AIAnalyticsProps) {
   const avgDensity = Math.round(nodes.reduce((sum, n) => sum + n.density, 0) / nodes.length);
@@ -36,27 +39,45 @@ export default function AIAnalytics({
     { name: 'Trucks', value: Math.round(totalVehicles * 0.04), color: '#EF4444' },
   ];
 
-  // Map dynamic Actual vs Predicted CSV logs to Area Chart data
-  const chartData = telemetryLogs && telemetryLogs.length > 0 && playbackIndex !== undefined
-    ? telemetryLogs.slice(Math.max(0, playbackIndex - 12), playbackIndex + 1).map((log, idx) => {
-        const timePart = log.timestamp.split(' ')[1] || log.timestamp;
-        const actualVal = parseFloat(log.densityPercent.toFixed(1));
-        // Fetch matching prediction log or calculate closely correlated value
-        const predLog = predictionLogs && predictionLogs[Math.max(0, playbackIndex - 12 + idx)];
-        const predictedVal = predLog
-          ? parseFloat(predLog.densityPercent.toFixed(1))
-          : parseFloat((actualVal * 0.97 + Math.sin(idx) * 1.5).toFixed(1));
-        return {
-          time: timePart.slice(0, 5),
-          Actual: actualVal,
-          Predicted: predictedVal,
-        };
-      })
-    : Array.from({ length: 10 }, (_, i) => ({
+  // Map dynamic Actual vs Predicted logs directly from Excel data
+  const chartData = useMemo(() => {
+    if (!uniqueTimestamps || !coordsByTimestamp || uniqueTimestamps.length === 0 || playbackIndex === undefined) {
+      return Array.from({ length: 12 }, (_, i) => ({
         time: `12:${(i * 5).toString().padStart(2, '0')}`,
         Actual: 30 + Math.sin(i) * 5,
         Predicted: 31 + Math.sin(i) * 4.8,
       }));
+    }
+
+    const startIdx = Math.max(0, playbackIndex - 11);
+    const endIdx = playbackIndex;
+    const subset = uniqueTimestamps.slice(startIdx, endIdx + 1);
+
+    return subset.map(timeStr => {
+      // 1. Calculate Actual Average Occupancy / Density from I1a (coordsByTimestamp)
+      const actualRecords = coordsByTimestamp[timeStr] || [];
+      const avgActualOccupancy = actualRecords.length > 0
+        ? actualRecords.reduce((sum, r) => sum + (r.occupancy || 0), 0) / actualRecords.length
+        : 35;
+
+      // Convert time string to seconds to align with prediction horizon
+      const parts = timeStr.split(':').map(Number);
+      const targetSec = (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
+      const bucketStartSec = Math.floor(targetSec / 1200) * 1200;
+
+      // 2. Calculate Predicted Average Queue Delay / Density from O1 (gcsPredictions)
+      const predRecords = gcsPredictions ? gcsPredictions.filter(p => p.predictionHorizonSec === bucketStartSec) : [];
+      const avgPredQueueDelay = predRecords.length > 0
+        ? Math.min(100, (predRecords.reduce((sum, p) => sum + (p.queuePred || 0), 0) / predRecords.length) * 8)
+        : 38;
+
+      return {
+        time: timeStr.slice(0, 5),
+        Actual: parseFloat(avgActualOccupancy.toFixed(1)),
+        Predicted: parseFloat(avgPredQueueDelay.toFixed(1)),
+      };
+    });
+  }, [uniqueTimestamps, coordsByTimestamp, gcsPredictions, playbackIndex]);
 
   return (
     <div className="h-full overflow-y-auto p-4 space-y-4">

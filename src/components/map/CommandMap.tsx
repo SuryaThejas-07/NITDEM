@@ -215,8 +215,6 @@ export default function CommandMap({ nodes, selectedNode, onNodeSelect, selected
     if (!mapRef.current || leafletMap.current) return;
 
     const map = L.map(mapRef.current, {
-      center: [11.2545, 75.7872],
-      zoom: 14,
       zoomControl: false,
       attributionControl: false,
     });
@@ -236,7 +234,6 @@ export default function CommandMap({ nodes, selectedNode, onNodeSelect, selected
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-    // Operational zone polygon
     const zone = L.polygon(OPERATIONAL_ZONE as L.LatLngExpression[], {
       color: '#F97316',
       fillColor: '#F97316',
@@ -244,6 +241,8 @@ export default function CommandMap({ nodes, selectedNode, onNodeSelect, selected
       weight: 2,
       dashArray: '8 4',
     }).addTo(map);
+
+    map.fitBounds(zone.getBounds(), { animate: false });
 
     zone.bindTooltip('NIT DEM Operational Monitoring Zone', {
       permanent: true,
