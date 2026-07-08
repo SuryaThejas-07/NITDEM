@@ -5,6 +5,7 @@ import type { Incident, UserRole, TrafficNode } from '../../types';
 import { formatRelative, priorityBadgeClass } from '../../utils';
 import LocationPicker from '../map/LocationPicker';
 import MiniMapPreview from '../map/MiniMapPreview';
+import { linkToRoadMap } from '../../hooks/linkMaps';
 
 interface IncidentCenterProps {
   incidents: Incident[];
@@ -32,7 +33,17 @@ const junctionMap: Record<string, string> = {
 };
 
 const INCIDENT_TYPES = ['Road Accident', 'Road Block', 'Vehicle Breakdown', 'Congestion Alert', 'Flooding', 'Traffic Signal Failure', 'VIP Movement', 'Other'];
-const LOCATIONS = ['Stadium Junction', 'Mavoor Road', 'Palayam', 'KSRTC Bus Stand', 'Mini Bypass', 'Custom'];
+const ALL_LINKS = Object.keys(linkToRoadMap).sort((a, b) => {
+  const numA = parseInt(a.replace('L', ''), 10);
+  const numB = parseInt(b.replace('L', ''), 10);
+  return numA - numB;
+});
+
+const getLinkOptionLabel = (id: string) => {
+  const meta = linkToRoadMap[id];
+  return meta ? `${id} - ${meta.roadName} (Near: ${meta.junction})` : id;
+};
+
 const TRAVEL_DIRECTIONS = [
   'Towards Bmh',
   'Towards Puthiyara',
@@ -71,7 +82,7 @@ export default function IncidentCenter({
   const [showPicker, setShowPicker] = useState(false);
   const [form, setForm] = useState({ 
     type: INCIDENT_TYPES[0], 
-    location: LOCATIONS[0], 
+    location: ALL_LINKS[0], 
     priority: 'high' as const, 
     description: '',
     travelDirection: TRAVEL_DIRECTIONS[0],
@@ -129,7 +140,7 @@ export default function IncidentCenter({
       setSubmitted(null);
       setForm({ 
         type: INCIDENT_TYPES[0], 
-        location: LOCATIONS[0], 
+        location: ALL_LINKS[0], 
         priority: 'high', 
         description: '',
         travelDirection: TRAVEL_DIRECTIONS[0],
@@ -379,7 +390,7 @@ export default function IncidentCenter({
                     </div>
                     <p className={`text-xs text-gray-400 mb-2 leading-relaxed ${incident.status === 'declined' ? 'line-through' : ''}`}>{incident.description}</p>
                     <div className="flex items-center gap-4 text-xs font-mono text-gray-500 flex-wrap">
-                      <span>📍 {incident.location}</span>
+                      <span>📍 {getLinkOptionLabel(incident.location)}</span>
                       {incident.lat && incident.lng && (
                         <span className="text-cyan-400">{incident.lat.toFixed(4)}°N, {incident.lng.toFixed(4)}°E</span>
                       )}
@@ -651,7 +662,7 @@ export default function IncidentCenter({
 
                     {[
                       { label: 'Incident Type', key: 'type', options: INCIDENT_TYPES, type: 'select' },
-                      { label: 'Location', key: 'location', options: LOCATIONS, type: 'text' },
+                      { label: 'Affected Link', key: 'location', options: ALL_LINKS, type: 'select' },
                       { label: 'Priority', key: 'priority', options: ['low', 'medium', 'high', 'critical'], type: 'select' },
                       { label: 'Travel Direction', key: 'travelDirection', options: TRAVEL_DIRECTIONS, type: 'select' },
                       { label: 'Lanes Blocked', key: 'lanesBlocked', type: 'number' },
@@ -666,7 +677,11 @@ export default function IncidentCenter({
                             onChange={e => setForm(prev => ({ ...prev, [key]: e.target.value }))}
                             className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500/50 transition-all"
                           >
-                            {options?.map(o => <option key={o} value={o} className="bg-[#151820]">{o}</option>)}
+                            {options?.map(o => (
+                              <option key={o} value={o} className="bg-[#151820]">
+                                {key === 'location' ? getLinkOptionLabel(o) : o}
+                              </option>
+                            ))}
                           </select>
                         ) : type === 'number' ? (
                           <input
@@ -767,9 +782,11 @@ export default function IncidentCenter({
             onClose={() => setShowPicker(false)}
             onConfirm={(data) => {
               setSelectedLoc(data);
-              if (data.nearestJunction) {
-                setForm(prev => ({ ...prev, location: data.nearestJunction }));
-              }
+              const matchedLink = Object.entries(linkToRoadMap).find(([id, meta]) => 
+                meta.junction.toLowerCase() === data.nearestJunction.toLowerCase() ||
+                data.affectedRoads.some(r => meta.roadName.toLowerCase().includes(r.toLowerCase()))
+              )?.[0] || ALL_LINKS[0];
+              setForm(prev => ({ ...prev, location: matchedLink }));
             }}
           />
         )}
@@ -784,9 +801,11 @@ export default function IncidentCenter({
             onClose={() => setEditPicker(false)}
             onConfirm={(data) => {
               setEditLoc(data);
-              if (data.nearestJunction) {
-                setEditForm(prev => ({ ...prev, location: data.nearestJunction }));
-              }
+              const matchedLink = Object.entries(linkToRoadMap).find(([id, meta]) => 
+                meta.junction.toLowerCase() === data.nearestJunction.toLowerCase() ||
+                data.affectedRoads.some(r => meta.roadName.toLowerCase().includes(r.toLowerCase()))
+              )?.[0] || ALL_LINKS[0];
+              setEditForm(prev => ({ ...prev, location: matchedLink }));
             }}
           />
         )}
@@ -848,7 +867,7 @@ export default function IncidentCenter({
                   />
                 ) : (
                   <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4 text-center text-[11px] text-gray-500 font-mono">
-                    No precise location pinned · {viewingIncident.location}
+                    No precise location pinned · {getLinkOptionLabel(viewingIncident.location)}
                   </div>
                 )}
 
@@ -861,7 +880,7 @@ export default function IncidentCenter({
                     </div>
                     <div className="text-gray-300">{viewingIncident.description}</div>
                     <div className="flex items-center gap-3 text-gray-500 flex-wrap">
-                      <span>📍 {viewingIncident.location}</span>
+                      <span>📍 {getLinkOptionLabel(viewingIncident.location)}</span>
                       {viewingIncident.lat && viewingIncident.lng && (
                         <span className="text-cyan-400">{viewingIncident.lat.toFixed(4)}°N, {viewingIncident.lng.toFixed(4)}°E</span>
                       )}
@@ -947,19 +966,15 @@ export default function IncidentCenter({
                       </select>
                     </div>
                     <div>
-                      <label className="block text-[9px] font-mono text-gray-500 tracking-widest mb-1.5 uppercase">Location</label>
-                      <input
-                        type="text"
-                        list="edit-location-suggestions"
-                        value={editForm.location}
-                        onChange={e => setEditForm(p => ({ ...p, location: e.target.value }))}
-                        placeholder="Select or type location..."
-                        className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500/50"
-                        required
-                      />
-                      <datalist id="edit-location-suggestions">
-                        {LOCATIONS.map(l => <option key={l} value={l} />)}
-                      </datalist>
+                      <label className="block text-[9px] font-mono text-gray-500 tracking-widest mb-1.5 uppercase">Affected Link</label>
+                      <select value={editForm.location} onChange={e => setEditForm(p => ({ ...p, location: e.target.value }))}
+                        className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500/50">
+                        {ALL_LINKS.map(o => (
+                          <option key={o} value={o} className="bg-[#151820]">
+                            {getLinkOptionLabel(o)}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     <div>
                       <label className="block text-[9px] font-mono text-gray-500 tracking-widest mb-1.5 uppercase">Priority</label>
