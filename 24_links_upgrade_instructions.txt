@@ -51,7 +51,7 @@
 ────────────────────────────────────────────────────────────────────────────────
 
 📁 STEP 1: Tell the Backend to Process 24 Links
-File Location: c:\Users\Surya Thejas\OneDrive\Dokumen\Projects\NITC\NITDEM\NITDEM\sync_datasets.cjs
+File Location: ./sync_datasets.cjs
 
 1. Open `sync_datasets.cjs` using any code editor.
 2. Locate line 242:
@@ -74,7 +74,7 @@ File Location: c:\Users\Surya Thejas\OneDrive\Dokumen\Projects\NITC\NITDEM\NITDE
 ────────────────────────────────────────────────────────────────────────────────
 
 📁 STEP 2: Tell the Sidebar Panel to Display 24 Links
-File Location: c:\Users\Surya Thejas\OneDrive\Dokumen\Projects\NITC\NITDEM\NITDEM\src\components\layout\IntelPanel.tsx
+File Location: ./src/components/layout/IntelPanel.tsx
 
 1. Open `IntelPanel.tsx` in your editor.
 2. Locate line 1185:

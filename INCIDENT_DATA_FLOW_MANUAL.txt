@@ -12,7 +12,7 @@ Machine Learning (ML) models.
 --------------------------------------------------------------------------------
 Operators and supervisors log or edit incidents via two primary forms in the
 Incident Center component:
-* File Reference: [IncidentCenter.tsx](file:///c:/Users/Surya Thejas/OneDrive/Dokumen/Projects/NITC/NITDEM/NITDEM/src/components/pages/IncidentCenter.tsx)
+* File Reference: [IncidentCenter.tsx](./src/components/pages/IncidentCenter.tsx)
 
 A. "Log Incident" Form (Modal Popup):
    Accessed via the floating orange "+" button in the bottom right corner of the
@@ -24,14 +24,14 @@ B. "Edit Incident" Form (Accordion Panel):
 C. Interactive Map Coordinates Picker:
    Accessed via the "Select Incident Location" button on the forms, opening the
    Leaflet location picker overlay.
-   * File Reference: [LocationPicker.tsx](file:///c:/Users/Surya Thejas/OneDrive/Dokumen/Projects/NITC/NITDEM/NITDEM/src/components/map/LocationPicker.tsx)
+   * File Reference: [LocationPicker.tsx](./src/components/map/LocationPicker.tsx)
 
 ---
 
 2. INCIDENT DATA SCHEMA & CAPTURED FIELDS
 --------------------------------------------------------------------------------
 Each logged incident complies with the following TypeScript model:
-* File Reference: [types/index.ts](file:///c:/Users/Surya Thejas/OneDrive/Dokumen/Projects/NITC/NITDEM/NITDEM/src/types/index.ts)
+* File Reference: [types/index.ts](./src/types/index.ts)
 
 * Captured Fields:
   - id (string): Automatically generated unique UUID string.
@@ -62,7 +62,7 @@ When an operator drops a marker pin on the Leaflet map picker, the coordinates
 are processed to automatically resolve the closest road link:
 1. The picker captures the exact latitude and longitude.
 2. The coordinates are checked against link coordinates mapped inside the dictionary:
-   * File Reference: [linkMaps.ts](file:///c:/Users/Surya Thejas/OneDrive/Dokumen/Projects/NITC/NITDEM/NITDEM/src/hooks/linkMaps.ts)
+   * File Reference: [linkMaps.ts](./src/hooks/linkMaps.ts)
 3. The closest physical link segment (L1 to L26) is resolved.
 4. The resolved Link ID (e.g. "L19") is prefilled in the "Affected Link" dropdown.
 
@@ -73,7 +73,7 @@ are processed to automatically resolve the closest road link:
 * State Management: 
   The active state is loaded, modified, and broadcasted globally using the React
   State store:
-  * File Reference: [useAppStore.ts](file:///c:/Users/Surya Thejas/OneDrive/Dokumen/Projects/NITC/NITDEM/NITDEM/src/hooks/useAppStore.ts)
+  * File Reference: [useAppStore.ts](./src/hooks/useAppStore.ts)
 * Persistence:
   To ensure incidents are not lost on browser reload or network disconnection,
   the array is serialized to JSON and persisted inside the browser's local cache
