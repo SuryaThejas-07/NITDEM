@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, Plus, X, CheckCircle, Clock, Hash, MapPin, Crosshair, List, Sparkles, Edit2, Save, Trash2 } from 'lucide-react';
 import type { Incident, UserRole, TrafficNode } from '../../types';
@@ -18,6 +18,8 @@ interface IncidentCenterProps {
   onUpdateIncident: (id: string, updates: Partial<Incident>) => void;
   onDeleteIncident: (id: string) => void;
   isDark: boolean;
+  selectedIncidentTokenId?: string | null;
+  onClearSelectedIncidentTokenId?: () => void;
 }
 
 const junctionMap: Record<string, string> = {
@@ -105,7 +107,9 @@ export default function IncidentCenter({
   nodes,
   onUpdateIncident,
   onDeleteIncident,
-  isDark
+  isDark,
+  selectedIncidentTokenId,
+  onClearSelectedIncidentTokenId
 }: IncidentCenterProps) {
   const [viewMode, setViewMode] = useState<'feed' | 'rankings'>('feed');
   const [showModal, setShowModal] = useState(false);
@@ -146,6 +150,16 @@ export default function IncidentCenter({
   });
   const [editPicker, setEditPicker] = useState(false);
   const [editLoc, setEditLoc] = useState<SelectedLocation | null>(null);
+
+  useEffect(() => {
+    if (selectedIncidentTokenId) {
+      const match = incidents.find(i => i.tokenId === selectedIncidentTokenId);
+      if (match) {
+        openViewer(match);
+      }
+      onClearSelectedIncidentTokenId?.();
+    }
+  }, [selectedIncidentTokenId, incidents]);
 
   const alertRoleWarning = (id: string) => {
     setRoleWarningId(id);

@@ -90,6 +90,7 @@ export function useAppStore() {
   const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
   const [selectedDroneId, setSelectedDroneId] = useState<string | null>('alpha');
   const [currentRole, setCurrentRole] = useState<UserRole>('supervisor');
+  const [selectedIncidentTokenId, setSelectedIncidentTokenId] = useState<string | null>(null);
 
   const selectNode = useCallback((node: TrafficNode | null) => {
     setSelectedNode(prev => prev?.id === node?.id ? null : node);
@@ -1549,5 +1550,7 @@ export function useAppStore() {
     toasts,
     dismissToast,
     selectLinkFromNotification,
+    selectedIncidentTokenId,
+    setSelectedIncidentTokenId,
   };
 }

@@ -12,6 +12,8 @@ interface IncidentNotificationPanelProps {
   onDispatchDrone: (droneId: string, nodeId: string) => void;
   currentRole: UserRole;
   isDark: boolean;
+  onNavigate?: (page: any) => void;
+  onSelectIncidentToken?: (tokenId: string) => void;
 }
 
 const junctionMap: Record<string, string> = {
@@ -43,7 +45,9 @@ export default function IncidentNotificationPanel({
   setIsAutoDispatch,
   onDispatchDrone,
   currentRole,
-  isDark
+  isDark,
+  onNavigate,
+  onSelectIncidentToken
 }: IncidentNotificationPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -296,9 +300,22 @@ export default function IncidentNotificationPanel({
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
+                              if (onNavigate && onSelectIncidentToken) {
+                                onSelectIncidentToken(incident.tokenId);
+                                onNavigate('incidents');
+                              }
+                            }}
+                            className="flex-1 py-1 bg-orange-500/25 border border-orange-500/35 hover:bg-orange-500/40 rounded text-orange-300 hover:text-white font-mono text-[10px] uppercase font-bold transition-all text-center"
+                          >
+                            View in Center
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setExpandedId(null);
                             }}
-                            className="flex-1 py-1 bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] rounded text-gray-400 hover:text-white font-mono text-[10px] uppercase font-bold"
+                            className="flex-1 py-1 bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] rounded text-gray-400 hover:text-white font-mono text-[10px] uppercase font-bold transition-all"
                           >
                             Collapse
                           </button>

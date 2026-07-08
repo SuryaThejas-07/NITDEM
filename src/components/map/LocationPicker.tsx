@@ -33,12 +33,17 @@ export default function LocationPicker({ onClose, onConfirm, initialLat, initial
       center: position ? [position.lat, position.lng] : DEFAULT_CENTER,
       zoom: 14,
       zoomControl: true,
+      minZoom: 13,
+      maxZoom: 18,
+      maxBounds: L.latLngBounds([11.15, 75.65], [11.35, 75.95]),
     });
 
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
       attribution: '© OpenStreetMap © CARTO',
       subdomains: 'abcd',
       maxZoom: 19,
+      noWrap: true,
+      bounds: L.latLngBounds([11.0, 75.5], [11.5, 76.0]),
     }).addTo(map);
 
     if (position) {

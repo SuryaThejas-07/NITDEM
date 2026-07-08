@@ -60,7 +60,10 @@ export default function App() {
   };
 
   const handleNotificationClick = (n: Notification) => {
-    if (n.linkId && store.selectLinkFromNotification) {
+    if (n.tokenId && store.setSelectedIncidentTokenId) {
+      store.setSelectedIncidentTokenId(n.tokenId);
+      store.setCurrentPage('incidents');
+    } else if (n.linkId && store.selectLinkFromNotification) {
       store.selectLinkFromNotification(n.linkId);
     }
   };
@@ -147,6 +150,8 @@ export default function App() {
             onUpdateIncident={store.updateIncident}
             onDeleteIncident={store.deleteIncident}
             isDark={store.isDark}
+            selectedIncidentTokenId={store.selectedIncidentTokenId}
+            onClearSelectedIncidentTokenId={() => store.setSelectedIncidentTokenId(null)}
           />
         );
       case 'events':
@@ -194,6 +199,8 @@ export default function App() {
           onDispatchDrone={store.dispatchDrone}
           currentRole={store.currentRole}
           isDark={store.isDark}
+          onNavigate={store.setCurrentPage}
+          onSelectIncidentToken={store.setSelectedIncidentTokenId}
         />
       )}
 

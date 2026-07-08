@@ -290,6 +290,9 @@ export default function CommandMap({ nodes, selectedNode, onNodeSelect, selected
     const map = L.map(mapRef.current, {
       zoomControl: false,
       attributionControl: false,
+      minZoom: 13,
+      maxZoom: 18,
+      maxBounds: L.latLngBounds([11.15, 75.65], [11.35, 75.95]),
     });
 
     // CartoDB tile layer (url dynamically toggled based on initial isDark state)
@@ -301,6 +304,8 @@ export default function CommandMap({ nodes, selectedNode, onNodeSelect, selected
         attribution: '© OpenStreetMap © CARTO',
         subdomains: 'abcd',
         maxZoom: 19,
+        noWrap: true,
+        bounds: L.latLngBounds([11.0, 75.5], [11.5, 76.0]),
       }
     ).addTo(map);
     tileLayerRef.current = tiles;
