@@ -1,0 +1,73 @@
+========================================================================
+NIT DEM: TRAFFIC DENSITY AND DEVIATION MONITORING SYSTEM - PROJECT OVERVIEW
+========================================================================
+
+1. INTRODUCTION & OBJECTIVE
+---------------------------
+The NIT DEM (Traffic Density and Deviation Monitor) is a state-of-the-art real-time traffic monitoring, forecasting, and incident response dashboard designed for Kozhikode's urban road network (comprising 10 primary junctions and 24 connecting links). 
+
+The platform enables traffic management operators to:
+* Visualize live road traffic telemetry (Speed, Volume, Density, Travel Times).
+* Inspect 20-minute predictive bottlenecks forecast by a Spatio-Temporal Graph Neural Network (ST-GNN) model.
+* Run dynamic "What-If" simulation adjustments (lane blockages, signal retiming offsets) to evaluate network recovery.
+* Dispatch and track UAV (drone) surveillance flights to verify real-time incident conditions.
+
+---
+
+2. SYSTEM ARCHITECTURE & COMPONENTS
+----------------------------------
+The project is split into a frontend web interface and an automated backend data ingestion pipeline:
+
+A. Backend Data Ingestion (sync_datasets.cjs)
+   * A script that executes commands to pull source Excel spreadsheets (.xlsx) from Google Cloud Storage (GCS) and compiles them into parsed JSON structures in the `/public` directory.
+   * Source Sheets:
+     - I1a.xlsx ➔ Link geometry, start/end coordinates, and attributes.
+     - I1b.xlsx ➔ Drone flight routes, current positions, and targets.
+     - I2.xlsx  ➔ Real-time telemetry log records (speed, occupancy, volume).
+     - O1.xlsx  ➔ ST-GNN AI traffic forecasting predictions and strategy.
+
+B. Store Engine (src/hooks/useAppStore.ts)
+   * The central state hook managing global variables, playback timelines, simulation parameter models, incidents register, and alerts history.
+
+C. Command Map (src/components/map/CommandMap.tsx)
+   * An interactive Leaflet map rendering road segments (connections) color-coded by congestion level (Green = Free Flow, Orange = Moderate, Red = Heavy, Dark Red = Critical).
+   * Supports custom precise location picking when manually pinning a new incident.
+
+D. Intelligent Center Sidebar (src/components/layout/IntelPanel.tsx)
+   * A layout detailing telemetry grids, corridor alerts, recommended actions, and simulation controls.
+
+---
+
+3. TRAFFIC METRICS & HOW THEY WORK
+---------------------------------
+Every road connector segment consists of two directed links (bidirectional). Hovering over a map segment displays details for both links separately:
+
+* Density (%): The proportion of road occupancy, calculated from sensor data.
+* Speed (km/h): Average velocity of traffic on the segment.
+* Volume (veh): Vehicle count estimated from density and segment capacity.
+* Est. Travel Time (secs): Calculated travel delay based on flow speed and junction signal delays.
+* Queue Length (meters): Real-time queue backing up from the junction.
+
+---
+
+4. DATA FLOW & SIMULATION PIPELINE
+----------------------------------
+Below is a diagram representing the data flow of the NIT DEM system:
+
+  [ Google Cloud Storage ] (gs://database_new/)
+            │
+            ▼ (sync_datasets.cjs copy & compile)
+     [ /public JSONs ] (I1a, I1b, I2, O1.json)
+            │
+            ▼ (Vite Frontend Load)
+  [ React Store / useAppStore ]
+     ├── Playback seeker index mapping
+     ├── Telemetry & Prediction parser
+     └── What-If Simulation adjustments
+            │
+      ┌─────┴────────────────────────┐
+      ▼                              ▼
+ [ Leaflet Map ]             [ Intelligent Center ]
+  * Bidirectional Hover       * Traffic Metrics Grid
+  * Dynamic coloring          * AI recommended strategies
+  * UAV flight pathing        * Sandbox simulation results

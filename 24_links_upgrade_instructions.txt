@@ -1,55 +1,81 @@
-NIT DEM - UPGRADE INSTRUCTIONS: SCALING PREDICTIONS FROM 8 TO 24 LINKS
+========================================================================
+NIT DEM: UPGRADE INSTRUCTIONS - SCALING PREDICTIONS FROM 8 TO 24 LINKS
+========================================================================
 
-If your ST-GNN prediction dataset is updated from the 8 primary links to include all 24 links, the following two specific modifications must be made in the codebase to enable full visualization in the Intelligent Center, notifications, and hover tooltips.
+1. BACKGROUND: WHY IS THIS CHANGE NEEDED?
+----------------------------------------
+Kozhikode's 10-junction network comprises 24 directed links (e.g. L1 to L26). Currently:
+* Live Telemetry (Current Analysis) works for all 24 links because the sensor datasets (`I2.json` / `I2.xlsx`) contain real-time telemetry inputs for the entire network.
+* Traffic Forecasting (20-Min Forecast) is currently configured for only 8 primary links (L1, L19, L13, L6, L17, L18, L3, L16) because the AI ST-GNN prediction output files (`O1.xlsx`) only yield forecasts for these 8 locations.
+
+When your ST-GNN model is retrained and scaled up to output forecasting results for all 24 links in `O1.xlsx`, you must make two minor changes in the codebase to visualize those forecasts in the Intelligent Center.
 
 ---
 
-### STEP 1: Update the Data Synchronization Script
+2. PRE-CONFIGURED ARCHITECTURE: WHAT ALREADY WORKS?
+---------------------------------------------------
+You DO NOT need to write any new code or change files for the Map color indicators, Hover tooltips, or Alert popups. The system is already fully designed to support 24 links:
+* `linkMaps.ts` maps all 24 link IDs (L1 through L26) to coordinates, road names, and connection keys.
+* `CommandMap.tsx` and `useAppStore.ts` read and group links dynamically based on the data present in `O1.json`.
+
+---
+
+3. REQUIRED CODE CHANGES (ONLY TWO FILES)
+------------------------------------------
+
+STEP 1: Update the Data Synchronization Script
 File: sync_datasets.cjs (Line 242)
 
-* Current Implementation:
-  Currently, the backend synchronization script only filters and generates forecast entries for 8 hardcoded link IDs:
-  ```javascript
-  const linkIds = ['L1', 'L19', 'L13', 'L6', 'L17', 'L18', 'L3', 'L16'];
-  ```
+* Why: The backend script filters predictions. If a link ID is not in this array, the script discards its forecast data and does not write it to `O1.json`.
+* Modification: Open `sync_datasets.cjs`, locate the `linkIds` filter list at line 242, and change it to include all 24 link IDs:
 
-* Required Modification:
-  Change this array to include all 24 active link IDs from the network layout:
-  ```javascript
-  const linkIds = [
-    'L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7', 'L8', 'L9', 'L10', 
-    'L11', 'L12', 'L13', 'L14', 'L15', 'L16', 'L17', 'L18', 'L19', 'L20', 
-    'L21', 'L22', 'L23', 'L24', 'L25', 'L26'
-  ];
-  ```
-  After making this change, run the sync command to regenerate a complete `O1.json`:
-  ```bash
-  node sync_datasets.cjs
-  ```
+```javascript
+// CHANGE THIS:
+const linkIds = ['L1', 'L19', 'L13', 'L6', 'L17', 'L18', 'L3', 'L16'];
 
----
+// TO THIS:
+const linkIds = [
+  'L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7', 'L8', 'L9', 'L10', 
+  'L11', 'L12', 'L13', 'L14', 'L15', 'L16', 'L17', 'L18', 'L19', 'L20', 
+  'L21', 'L22', 'L23', 'L24', 'L25', 'L26'
+];
+```
+After updating the file, trigger the sync cycle to regenerate a full dataset:
+```bash
+node sync_datasets.cjs
+```
 
-### STEP 2: Update the Intelligent Center Sidebar Filter
+────────────────────────────────────────────────────────────────────────
+
+STEP 2: Update the Intelligent Center Filter list
 File: src/components/layout/IntelPanel.tsx (Line 1185)
 
-* Current Implementation:
-  The Intelligent Center limits its ST-GNN forecast listing to the 8 primary links using a hardcoded array filter:
-  ```typescript
-  const allStgnnLinks = ['L19', 'L13', 'L6', 'L17', 'L18', 'L1', 'L16', 'L3'];
-  ```
+* Why: The sidebar has a hardcoded array helper (`allStgnnLinks`) that filters which forecast recommendation cards to show.
+* Modification: Open `IntelPanel.tsx`, locate the `allStgnnLinks` array at line 1185, and update it to list all 24 link IDs:
 
-* Required Modification:
-  Update the array to contain all 24 link IDs. This will automatically enable the 20-Minute Forecast cards for all links across the entire sidebar overview, junction detail panels, and corridor lists:
-  ```typescript
-  const allStgnnLinks = [
-    'L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7', 'L8', 'L9', 'L10', 
-    'L11', 'L13', 'L14', 'L15', 'L16', 'L17', 'L18', 'L19', 'L20', 'L21', 
-    'L22', 'L23', 'L24', 'L26'
-  ];
-  ```
+```typescript
+// CHANGE THIS:
+const allStgnnLinks = ['L19', 'L13', 'L6', 'L17', 'L18', 'L1', 'L16', 'L3'];
+
+// TO THIS:
+const allStgnnLinks = [
+  'L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7', 'L8', 'L9', 'L10', 
+  'L11', 'L13', 'L14', 'L15', 'L16', 'L17', 'L18', 'L19', 'L20', 'L21', 
+  'L22', 'L23', 'L24', 'L26'
+];
+```
 
 ---
 
-### NOTE ON HOVER TOOLTIPS, MAP COLORS, & NOTIFICATIONS:
-* **No code changes required**: The core store (`useAppStore.ts`), connection definitions (`CommandMap.tsx`), and road coordinate lookups (`linkMaps.ts`) are already fully configured to handle all 24 links. 
-* Once `O1.json` is updated with the new link data (Step 1) and the Intelligent Center filter is updated (Step 2), all 24 links will automatically display forecasted colors, live notifications, hover tooltips, and recommended strategies dynamically.
+4. VERIFYING SUCCESS
+--------------------
+Once both files are saved:
+1. Recompile the production bundle:
+   ```bash
+   npm run build
+   ```
+2. Deploy the build:
+   ```bash
+   firebase deploy
+   ```
+3. Open the browser and switch to "20-Min Forecast". The color of every road segment will now dynamically update based on the new forecasted outputs in your newly synchronized `O1.json`.
