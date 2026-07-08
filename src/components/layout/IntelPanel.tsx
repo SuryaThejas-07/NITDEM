@@ -1487,15 +1487,21 @@ function Forecast20Panel({
         }
 
         // Overview: no selection
-        const allLinkForecasts = allStgnnLinks.map(linkId => {
-          const preds = gcsPredictions.filter(p => p.link === linkId);
-          const f = findForecast(preds, elapsedSec);
-          return {
-            linkId,
-            forecast: f,
-            connectionKey: linkToConnectionMap[linkId]
-          };
-        });
+        const allLinkForecasts = allStgnnLinks
+          .map(linkId => {
+            const preds = gcsPredictions.filter(p => p.link === linkId);
+            const f = findForecast(preds, elapsedSec);
+            return {
+              linkId,
+              forecast: f,
+              connectionKey: linkToConnectionMap[linkId]
+            };
+          })
+          .filter(item => {
+            const rawStrategy = item.forecast ? item.forecast.recommendedStrategy : '';
+            const strategy = (rawStrategy === '' || rawStrategy === '0' || !rawStrategy) ? 'No measures required' : rawStrategy;
+            return strategy !== 'No measures required' && strategy !== 'No Measures Required';
+          });
 
         return (
           <div className="space-y-2">
@@ -1503,14 +1509,15 @@ function Forecast20Panel({
               <Brain className="w-3.5 h-3.5 text-orange-400 shrink-0" />
               <div>
                 <div className="text-[10px] font-mono text-orange-400 tracking-wider font-bold">20-MIN NETWORK FORECAST</div>
-                <div className="text-[9px] text-gray-400 font-sans font-bold">Predictions for 8 primary links</div>
+                <div className="text-[9px] text-gray-400 font-sans font-bold">Mitigation strategies active on network</div>
               </div>
             </div>
 
             <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
               {allLinkForecasts.length === 0 ? (
-                <div className="bg-white/[0.03] border border-white/[0.05] rounded-lg p-4 text-center text-xs text-gray-500 font-mono">
-                  No STGNN predictions loaded yet.
+                <div className="bg-white/[0.02] border border-white/[0.04] rounded-lg p-4 text-center text-xs text-gray-400 font-mono leading-relaxed">
+                  All monitored links are running at optimal capacity.<br/>
+                  <span className="text-[10px] text-gray-500">No mitigation measures required currently.</span>
                 </div>
               ) : (
                 allLinkForecasts.map(({ linkId, forecast, connectionKey }) => {
