@@ -39,9 +39,39 @@ const ALL_LINKS = Object.keys(linkToRoadMap).sort((a, b) => {
   return numA - numB;
 });
 
+const LINK_FLOW_DIRECTIONS: Record<string, string> = {
+  L1: 'Arayidathupalam → Midtown',
+  L18: 'Midtown → Arayidathupalam',
+  L2: 'Midtown → East Bypass',
+  L24: 'East Bypass → Midtown',
+  L3: 'Stadium → Midtown',
+  L16: 'Midtown → Stadium',
+  L4: 'Stadium → Poonthanam',
+  L10: 'Poonthanam → Stadium',
+  L5: 'Stadium → Mananchira',
+  L15: 'Mananchira → Stadium',
+  L6: 'Bus Stand → Stadium',
+  L17: 'Stadium → Bus Stand',
+  L7: 'East Bypass → Poonthanam',
+  L20: 'Poonthanam → East Bypass',
+  L8: 'Palayam → Mananchira',
+  L22: 'Mananchira → Palayam',
+  L9: 'Poonthanam → Palayam',
+  L21: 'Palayam → Poonthanam',
+  L11: 'Mavoor Road → Bus Stand',
+  L23: 'Bus Stand → Mavoor Road',
+  L12: 'Mavoor Road → Bus Stand (Alternate)',
+  L25: 'Bus Stand → Mavoor Road (Alternate)',
+  L13: 'Arayidathupalam → Bus Stand',
+  L19: 'Bus Stand → Arayidathupalam',
+  L14: 'Mavoor Road → Mananchira',
+  L26: 'Mananchira → Mavoor Road',
+};
+
 const getLinkOptionLabel = (id: string) => {
   const meta = linkToRoadMap[id];
-  return meta ? `${id} - ${meta.roadName} (Near: ${meta.junction})` : id;
+  const flow = LINK_FLOW_DIRECTIONS[id];
+  return meta ? `${id} - ${meta.roadName} (${flow || meta.junction})` : id;
 };
 
 const TRAVEL_DIRECTIONS = [
@@ -86,7 +116,7 @@ export default function IncidentCenter({
     priority: 'high' as const, 
     description: '',
     travelDirection: TRAVEL_DIRECTIONS[0],
-    lanesBlocked: 0,
+    lanesBlocked: '' as any,
     startTime: '',
     endTime: ''
   });
@@ -101,7 +131,7 @@ export default function IncidentCenter({
     priority: Incident['priority']; 
     description: string;
     travelDirection?: string;
-    lanesBlocked?: number;
+    lanesBlocked?: any;
     startTime?: string;
     endTime?: string;
   }>({ 
@@ -110,7 +140,7 @@ export default function IncidentCenter({
     priority: 'high', 
     description: '',
     travelDirection: '',
-    lanesBlocked: 0,
+    lanesBlocked: '',
     startTime: '',
     endTime: ''
   });
@@ -129,6 +159,7 @@ export default function IncidentCenter({
     onLogIncident({
       ...form,
       priority: form.priority as any,
+      lanesBlocked: form.lanesBlocked === '' ? 0 : Number(form.lanesBlocked),
       lat: selectedLoc?.lat,
       lng: selectedLoc?.lng,
       nearestJunction: selectedLoc?.nearestJunction,
@@ -144,7 +175,7 @@ export default function IncidentCenter({
         priority: 'high', 
         description: '',
         travelDirection: TRAVEL_DIRECTIONS[0],
-        lanesBlocked: 0,
+        lanesBlocked: '' as any,
         startTime: '',
         endTime: ''
       });
@@ -168,7 +199,7 @@ export default function IncidentCenter({
       priority: inc.priority, 
       description: inc.description,
       travelDirection: inc.travelDirection || '',
-      lanesBlocked: inc.lanesBlocked || 0,
+      lanesBlocked: inc.lanesBlocked !== undefined ? inc.lanesBlocked : '',
       startTime: inc.startTime || '',
       endTime: inc.endTime || ''
     });
@@ -177,13 +208,14 @@ export default function IncidentCenter({
 
   const saveEdits = () => {
     if (!viewingIncident) return;
+    const finalLanesBlocked = editForm.lanesBlocked === '' ? 0 : Number(editForm.lanesBlocked);
     onUpdateIncident(viewingIncident.id, {
       type: editForm.type,
       location: editForm.location,
       priority: editForm.priority,
       description: editForm.description,
       travelDirection: editForm.travelDirection,
-      lanesBlocked: editForm.lanesBlocked,
+      lanesBlocked: finalLanesBlocked,
       startTime: editForm.startTime,
       endTime: editForm.endTime,
       lat: editLoc?.lat ?? viewingIncident.lat,
@@ -198,7 +230,7 @@ export default function IncidentCenter({
       priority: editForm.priority,
       description: editForm.description,
       travelDirection: editForm.travelDirection,
-      lanesBlocked: editForm.lanesBlocked,
+      lanesBlocked: finalLanesBlocked,
       startTime: editForm.startTime,
       endTime: editForm.endTime,
       lat: editLoc?.lat ?? viewingIncident.lat,
@@ -689,7 +721,10 @@ export default function IncidentCenter({
                             min="0"
                             max="6"
                             value={(form as any)[key]}
-                            onChange={e => setForm(prev => ({ ...prev, [key]: parseInt(e.target.value, 10) || 0 }))}
+                            onChange={e => {
+                              const val = e.target.value;
+                              setForm(prev => ({ ...prev, [key]: val === '' ? '' : (parseInt(val, 10) || 0) }));
+                            }}
                             className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500/50 transition-all"
                             required
                           />
@@ -992,7 +1027,10 @@ export default function IncidentCenter({
                     </div>
                     <div>
                       <label className="block text-[9px] font-mono text-gray-500 tracking-widest mb-1.5 uppercase">Lanes Blocked</label>
-                      <input type="number" min="0" max="6" value={editForm.lanesBlocked} onChange={e => setEditForm(p => ({ ...p, lanesBlocked: parseInt(e.target.value, 10) || 0 }))}
+                      <input type="number" min="0" max="6" value={editForm.lanesBlocked} onChange={e => {
+                        const val = e.target.value;
+                        setEditForm(p => ({ ...p, lanesBlocked: val === '' ? '' : (parseInt(val, 10) || 0) }));
+                      }}
                         className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500/50" />
                     </div>
                     <div className="grid grid-cols-2 gap-2">
