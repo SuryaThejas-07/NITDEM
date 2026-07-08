@@ -1121,6 +1121,10 @@ export function useAppStore() {
       description: sanitizedDescription,
       nearestJunction: sanitizedNearestJunction,
       affectedRoads: sanitizedAffectedRoads,
+      travelDirection: data.travelDirection ? sanitizeInput(data.travelDirection, 100) : undefined,
+      lanesBlocked: data.lanesBlocked ? Number(data.lanesBlocked) : undefined,
+      startTime: data.startTime ? sanitizeInput(data.startTime, 20) : undefined,
+      endTime: data.endTime ? sanitizeInput(data.endTime, 20) : undefined,
       lat,
       lng,
       id: Math.random().toString(36).slice(2),
@@ -1197,6 +1201,10 @@ export function useAppStore() {
     if (updates.description !== undefined) sanitizedUpdates.description = sanitizeInput(updates.description, 300);
     if (updates.lat !== undefined) sanitizedUpdates.lat = updates.lat;
     if (updates.lng !== undefined) sanitizedUpdates.lng = updates.lng;
+    if (updates.travelDirection !== undefined) sanitizedUpdates.travelDirection = updates.travelDirection ? sanitizeInput(updates.travelDirection, 100) : undefined;
+    if (updates.lanesBlocked !== undefined) sanitizedUpdates.lanesBlocked = updates.lanesBlocked ? Number(updates.lanesBlocked) : undefined;
+    if (updates.startTime !== undefined) sanitizedUpdates.startTime = updates.startTime ? sanitizeInput(updates.startTime, 20) : undefined;
+    if (updates.endTime !== undefined) sanitizedUpdates.endTime = updates.endTime ? sanitizeInput(updates.endTime, 20) : undefined;
 
     setIncidents(prev => prev.map(inc => {
       if (inc.id === id) {

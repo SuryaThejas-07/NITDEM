@@ -50,6 +50,10 @@ export interface Incident {
   lng?: number;
   nearestJunction?: string;
   affectedRoads?: string[];
+  travelDirection?: string;
+  lanesBlocked?: number;
+  startTime?: string;
+  endTime?: string;
 }
 
 export interface Token {

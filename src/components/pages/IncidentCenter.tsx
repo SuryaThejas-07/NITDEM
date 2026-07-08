@@ -33,6 +33,17 @@ const junctionMap: Record<string, string> = {
 
 const INCIDENT_TYPES = ['Road Accident', 'Road Block', 'Vehicle Breakdown', 'Congestion Alert', 'Flooding', 'Traffic Signal Failure', 'VIP Movement', 'Other'];
 const LOCATIONS = ['Stadium Junction', 'Mavoor Road', 'Palayam', 'KSRTC Bus Stand', 'Mini Bypass', 'Custom'];
+const TRAVEL_DIRECTIONS = [
+  'Towards Bmh',
+  'Towards Puthiyara',
+  'Towards New Bus Stand',
+  'Towards Stadium',
+  'Towards Chinthavalappu',
+  'Towards Kalluthankadavu',
+  'Towards Palayam',
+  'Towards KSRTC',
+  'Towards Gtec'
+];
 
 interface SelectedLocation {
   lat: number;
@@ -58,13 +69,40 @@ export default function IncidentCenter({
   const [viewMode, setViewMode] = useState<'feed' | 'rankings'>('feed');
   const [showModal, setShowModal] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
-  const [form, setForm] = useState({ type: INCIDENT_TYPES[0], location: LOCATIONS[0], priority: 'high' as const, description: '' });
+  const [form, setForm] = useState({ 
+    type: INCIDENT_TYPES[0], 
+    location: LOCATIONS[0], 
+    priority: 'high' as const, 
+    description: '',
+    travelDirection: TRAVEL_DIRECTIONS[0],
+    lanesBlocked: 0,
+    startTime: '',
+    endTime: ''
+  });
   const [selectedLoc, setSelectedLoc] = useState<SelectedLocation | null>(null);
   const [submitted, setSubmitted] = useState<string | null>(null);
   const [roleWarningId, setRoleWarningId] = useState<string | null>(null);
   const [viewingIncident, setViewingIncident] = useState<Incident | null>(null);
   const [isEditingView, setIsEditingView] = useState(false);
-  const [editForm, setEditForm] = useState<{ type: string; location: string; priority: Incident['priority']; description: string }>({ type: '', location: '', priority: 'high', description: '' });
+  const [editForm, setEditForm] = useState<{ 
+    type: string; 
+    location: string; 
+    priority: Incident['priority']; 
+    description: string;
+    travelDirection?: string;
+    lanesBlocked?: number;
+    startTime?: string;
+    endTime?: string;
+  }>({ 
+    type: '', 
+    location: '', 
+    priority: 'high', 
+    description: '',
+    travelDirection: '',
+    lanesBlocked: 0,
+    startTime: '',
+    endTime: ''
+  });
   const [editPicker, setEditPicker] = useState(false);
   const [editLoc, setEditLoc] = useState<SelectedLocation | null>(null);
 
@@ -89,7 +127,16 @@ export default function IncidentCenter({
     setTimeout(() => {
       setShowModal(false);
       setSubmitted(null);
-      setForm({ type: INCIDENT_TYPES[0], location: LOCATIONS[0], priority: 'high', description: '' });
+      setForm({ 
+        type: INCIDENT_TYPES[0], 
+        location: LOCATIONS[0], 
+        priority: 'high', 
+        description: '',
+        travelDirection: TRAVEL_DIRECTIONS[0],
+        lanesBlocked: 0,
+        startTime: '',
+        endTime: ''
+      });
       setSelectedLoc(null);
     }, 2500);
   };
@@ -104,7 +151,16 @@ export default function IncidentCenter({
   const openViewer = (inc: Incident) => {
     setViewingIncident(inc);
     setIsEditingView(false);
-    setEditForm({ type: inc.type, location: inc.location, priority: inc.priority, description: inc.description });
+    setEditForm({ 
+      type: inc.type, 
+      location: inc.location, 
+      priority: inc.priority, 
+      description: inc.description,
+      travelDirection: inc.travelDirection || '',
+      lanesBlocked: inc.lanesBlocked || 0,
+      startTime: inc.startTime || '',
+      endTime: inc.endTime || ''
+    });
     setEditLoc(inc.lat && inc.lng ? { lat: inc.lat, lng: inc.lng, nearestJunction: inc.nearestJunction || '', affectedRoads: inc.affectedRoads || [] } : null);
   };
 
@@ -115,6 +171,10 @@ export default function IncidentCenter({
       location: editForm.location,
       priority: editForm.priority,
       description: editForm.description,
+      travelDirection: editForm.travelDirection,
+      lanesBlocked: editForm.lanesBlocked,
+      startTime: editForm.startTime,
+      endTime: editForm.endTime,
       lat: editLoc?.lat ?? viewingIncident.lat,
       lng: editLoc?.lng ?? viewingIncident.lng,
       nearestJunction: editLoc?.nearestJunction ?? viewingIncident.nearestJunction,
@@ -126,6 +186,10 @@ export default function IncidentCenter({
       location: editForm.location,
       priority: editForm.priority,
       description: editForm.description,
+      travelDirection: editForm.travelDirection,
+      lanesBlocked: editForm.lanesBlocked,
+      startTime: editForm.startTime,
+      endTime: editForm.endTime,
       lat: editLoc?.lat ?? viewingIncident.lat,
       lng: editLoc?.lng ?? viewingIncident.lng,
       nearestJunction: editLoc?.nearestJunction ?? viewingIncident.nearestJunction,
@@ -325,6 +389,20 @@ export default function IncidentCenter({
                       <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{formatRelative(incident.timestamp)}</span>
                       <span className="flex items-center gap-1 text-orange-400"><Hash className="w-3.5 h-3.5" />{incident.tokenId}</span>
                     </div>
+
+                    {(incident.travelDirection || (incident.lanesBlocked !== undefined && incident.lanesBlocked > 0) || incident.startTime || incident.endTime) && (
+                      <div className="flex items-center gap-4 text-[10px] font-mono text-gray-400 mt-2 bg-white/[0.02] border border-white/[0.04] rounded-lg px-2.5 py-1.5 flex-wrap">
+                        {incident.travelDirection && (
+                          <span>🧭 Direction: <strong className="text-orange-400">{incident.travelDirection}</strong></span>
+                        )}
+                        {incident.lanesBlocked !== undefined && incident.lanesBlocked > 0 && (
+                          <span>🚫 Lanes: <strong className="text-red-400">{incident.lanesBlocked} blocked</strong></span>
+                        )}
+                        {(incident.startTime || incident.endTime) && (
+                          <span>⏰ Time: <strong className="text-cyan-400">{incident.startTime || 'N/A'} - {incident.endTime || 'N/A'}</strong></span>
+                        )}
+                      </div>
+                    )}
 
                     {incident.status === 'pending' && (
                       <div className="mt-3 flex items-center justify-between gap-4 border-t border-white/[0.04] pt-3 flex-wrap">
@@ -575,6 +653,10 @@ export default function IncidentCenter({
                       { label: 'Incident Type', key: 'type', options: INCIDENT_TYPES, type: 'select' },
                       { label: 'Location', key: 'location', options: LOCATIONS, type: 'text' },
                       { label: 'Priority', key: 'priority', options: ['low', 'medium', 'high', 'critical'], type: 'select' },
+                      { label: 'Travel Direction', key: 'travelDirection', options: TRAVEL_DIRECTIONS, type: 'select' },
+                      { label: 'Lanes Blocked', key: 'lanesBlocked', type: 'number' },
+                      { label: 'Start Time', key: 'startTime', type: 'time' },
+                      { label: 'End Time', key: 'endTime', type: 'time' },
                     ].map(({ label, key, options, type }) => (
                       <div key={key}>
                         <label className="block text-[11px] font-sans font-semibold tracking-wider text-gray-400 mb-1.5 uppercase">{label}</label>
@@ -584,8 +666,26 @@ export default function IncidentCenter({
                             onChange={e => setForm(prev => ({ ...prev, [key]: e.target.value }))}
                             className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500/50 transition-all"
                           >
-                            {options.map(o => <option key={o} value={o} className="bg-[#151820]">{o}</option>)}
+                            {options?.map(o => <option key={o} value={o} className="bg-[#151820]">{o}</option>)}
                           </select>
+                        ) : type === 'number' ? (
+                          <input
+                            type="number"
+                            min="0"
+                            max="6"
+                            value={(form as any)[key]}
+                            onChange={e => setForm(prev => ({ ...prev, [key]: parseInt(e.target.value, 10) || 0 }))}
+                            className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500/50 transition-all"
+                            required
+                          />
+                        ) : type === 'time' ? (
+                          <input
+                            type="time"
+                            value={(form as any)[key]}
+                            onChange={e => setForm(prev => ({ ...prev, [key]: e.target.value }))}
+                            className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500/50 transition-all"
+                            required
+                          />
                         ) : (
                           <>
                             <input
@@ -598,7 +698,7 @@ export default function IncidentCenter({
                               required
                             />
                             <datalist id="location-suggestions">
-                              {options.map(o => <option key={o} value={o} />)}
+                              {options?.map(o => <option key={o} value={o} />)}
                             </datalist>
                           </>
                         )}
@@ -767,6 +867,34 @@ export default function IncidentCenter({
                       )}
                       {viewingIncident.nearestJunction && <span className="text-orange-400">Near: {viewingIncident.nearestJunction}</span>}
                     </div>
+                    {(viewingIncident.travelDirection || (viewingIncident.lanesBlocked !== undefined && viewingIncident.lanesBlocked > 0) || viewingIncident.startTime || viewingIncident.endTime) && (
+                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/[0.04] text-[10px] text-gray-400 font-mono">
+                        {viewingIncident.travelDirection && (
+                          <div>
+                            <span className="text-gray-500">Direction: </span>
+                            <span className="text-orange-400 font-semibold">{viewingIncident.travelDirection}</span>
+                          </div>
+                        )}
+                        {viewingIncident.lanesBlocked !== undefined && viewingIncident.lanesBlocked > 0 && (
+                          <div>
+                            <span className="text-gray-500">Lanes Blocked: </span>
+                            <span className="text-red-400 font-bold">{viewingIncident.lanesBlocked} lanes</span>
+                          </div>
+                        )}
+                        {viewingIncident.startTime && (
+                          <div>
+                            <span className="text-gray-500">Start Time: </span>
+                            <span className="text-green-400 font-semibold">{viewingIncident.startTime}</span>
+                          </div>
+                        )}
+                        {viewingIncident.endTime && (
+                          <div>
+                            <span className="text-gray-500">End Time: </span>
+                            <span className="text-yellow-400 font-semibold">{viewingIncident.endTime}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     {viewingIncident.affectedRoads && viewingIncident.affectedRoads.length > 0 && (
                       <div className="flex flex-wrap gap-1 pt-1">
                         {viewingIncident.affectedRoads.map(r => (
@@ -839,6 +967,30 @@ export default function IncidentCenter({
                         className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500/50">
                         {['low', 'medium', 'high', 'critical'].map(o => <option key={o} value={o} className="bg-[#151820]">{o}</option>)}
                       </select>
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-mono text-gray-500 tracking-widest mb-1.5 uppercase">Travel Direction</label>
+                      <select value={editForm.travelDirection} onChange={e => setEditForm(p => ({ ...p, travelDirection: e.target.value }))}
+                        className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500/50">
+                        {TRAVEL_DIRECTIONS.map(o => <option key={o} value={o} className="bg-[#151820]">{o}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-mono text-gray-500 tracking-widest mb-1.5 uppercase">Lanes Blocked</label>
+                      <input type="number" min="0" max="6" value={editForm.lanesBlocked} onChange={e => setEditForm(p => ({ ...p, lanesBlocked: parseInt(e.target.value, 10) || 0 }))}
+                        className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500/50" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[9px] font-mono text-gray-500 tracking-widest mb-1.5 uppercase">Start Time</label>
+                        <input type="time" value={editForm.startTime} onChange={e => setEditForm(p => ({ ...p, startTime: e.target.value }))}
+                          className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500/50" />
+                      </div>
+                      <div>
+                        <label className="block text-[9px] font-mono text-gray-500 tracking-widest mb-1.5 uppercase">End Time</label>
+                        <input type="time" value={editForm.endTime} onChange={e => setEditForm(p => ({ ...p, endTime: e.target.value }))}
+                          className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500/50" />
+                      </div>
                     </div>
                     <div>
                       <label className="block text-[9px] font-mono text-gray-500 tracking-widest mb-1.5 uppercase">Description</label>
