@@ -572,19 +572,36 @@ export default function IncidentCenter({
                     </div>
 
                     {[
-                      { label: 'Incident Type', key: 'type', options: INCIDENT_TYPES },
-                      { label: 'Location', key: 'location', options: LOCATIONS },
-                      { label: 'Priority', key: 'priority', options: ['low', 'medium', 'high', 'critical'] },
-                    ].map(({ label, key, options }) => (
+                      { label: 'Incident Type', key: 'type', options: INCIDENT_TYPES, type: 'select' },
+                      { label: 'Location', key: 'location', options: LOCATIONS, type: 'text' },
+                      { label: 'Priority', key: 'priority', options: ['low', 'medium', 'high', 'critical'], type: 'select' },
+                    ].map(({ label, key, options, type }) => (
                       <div key={key}>
                         <label className="block text-[11px] font-sans font-semibold tracking-wider text-gray-400 mb-1.5 uppercase">{label}</label>
-                        <select
-                          value={(form as any)[key]}
-                          onChange={e => setForm(prev => ({ ...prev, [key]: e.target.value }))}
-                          className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500/50 transition-all"
-                        >
-                          {options.map(o => <option key={o} value={o} className="bg-[#151820]">{o}</option>)}
-                        </select>
+                        {type === 'select' ? (
+                          <select
+                            value={(form as any)[key]}
+                            onChange={e => setForm(prev => ({ ...prev, [key]: e.target.value }))}
+                            className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500/50 transition-all"
+                          >
+                            {options.map(o => <option key={o} value={o} className="bg-[#151820]">{o}</option>)}
+                          </select>
+                        ) : (
+                          <>
+                            <input
+                              type="text"
+                              list="location-suggestions"
+                              value={(form as any)[key]}
+                              onChange={e => setForm(prev => ({ ...prev, [key]: e.target.value }))}
+                              placeholder="Select or type location..."
+                              className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500/50 transition-all"
+                              required
+                            />
+                            <datalist id="location-suggestions">
+                              {options.map(o => <option key={o} value={o} />)}
+                            </datalist>
+                          </>
+                        )}
                       </div>
                     ))}
 
@@ -648,7 +665,12 @@ export default function IncidentCenter({
         {showPicker && (
           <LocationPicker
             onClose={() => setShowPicker(false)}
-            onConfirm={(data) => setSelectedLoc(data)}
+            onConfirm={(data) => {
+              setSelectedLoc(data);
+              if (data.nearestJunction) {
+                setForm(prev => ({ ...prev, location: data.nearestJunction }));
+              }
+            }}
           />
         )}
       </AnimatePresence>
@@ -660,7 +682,12 @@ export default function IncidentCenter({
             initialLat={editLoc?.lat ?? viewingIncident?.lat}
             initialLng={editLoc?.lng ?? viewingIncident?.lng}
             onClose={() => setEditPicker(false)}
-            onConfirm={(data) => setEditLoc(data)}
+            onConfirm={(data) => {
+              setEditLoc(data);
+              if (data.nearestJunction) {
+                setEditForm(prev => ({ ...prev, location: data.nearestJunction }));
+              }
+            }}
           />
         )}
       </AnimatePresence>
@@ -793,10 +820,18 @@ export default function IncidentCenter({
                     </div>
                     <div>
                       <label className="block text-[9px] font-mono text-gray-500 tracking-widest mb-1.5 uppercase">Location</label>
-                      <select value={editForm.location} onChange={e => setEditForm(p => ({ ...p, location: e.target.value }))}
-                        className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500/50">
-                        {[editForm.location, ...LOCATIONS.filter(l => l !== editForm.location)].map(o => <option key={o} value={o} className="bg-[#151820]">{o}</option>)}
-                      </select>
+                      <input
+                        type="text"
+                        list="edit-location-suggestions"
+                        value={editForm.location}
+                        onChange={e => setEditForm(p => ({ ...p, location: e.target.value }))}
+                        placeholder="Select or type location..."
+                        className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500/50"
+                        required
+                      />
+                      <datalist id="edit-location-suggestions">
+                        {LOCATIONS.map(l => <option key={l} value={l} />)}
+                      </datalist>
                     </div>
                     <div>
                       <label className="block text-[9px] font-mono text-gray-500 tracking-widest mb-1.5 uppercase">Priority</label>
