@@ -150,7 +150,7 @@ function getConnectionTooltipContent(
           <div style="color: #E5E7EB; font-size: 11px; margin-bottom: 2px;">Link status: <span style="color: ${STATUS_COLORS[l1.status]}; font-weight: bold;">${statusLabel(l1.status)}</span></div>
           <div style="color: #E5E7EB; font-size: 11px; margin-bottom: 2px;">Density: <span style="font-weight: bold; color: ${STATUS_COLORS[l1.status]};">${l1.density}%</span></div>
           <div style="color: #E5E7EB; font-size: 11px; margin-bottom: 2px;">Speed: <span style="font-weight: bold;">${l1.speed} km/h</span> | Volume: <span style="font-weight: bold;">${l1.volume} veh</span></div>
-          <div style="color: #E5E7EB; font-size: 11px; margin-bottom: 2px;">Est. Travel Time: <span style="font-weight: bold; color: #F59E0B;">${l1.travelTime} mins</span></div>
+          <div style="color: #E5E7EB; font-size: 11px; margin-bottom: 2px;">Est. Travel Time: <span style="font-weight: bold; color: #F59E0B;">${l1.travelTime} secs</span></div>
           ${l1.queueLength !== undefined && l1.queueLength > 0 ? `<div style="color: #E5E7EB; font-size: 11px;">Queue Length: <span style="font-weight: bold; color: #EF4444;">${l1.queueLength.toFixed(1)} m</span></div>` : ''}
         </div>
 
@@ -159,7 +159,7 @@ function getConnectionTooltipContent(
           <div style="color: #E5E7EB; font-size: 11px; margin-bottom: 2px;">Link status: <span style="color: ${STATUS_COLORS[l2.status]}; font-weight: bold;">${statusLabel(l2.status)}</span></div>
           <div style="color: #E5E7EB; font-size: 11px; margin-bottom: 2px;">Density: <span style="font-weight: bold; color: ${STATUS_COLORS[l2.status]};">${l2.density}%</span></div>
           <div style="color: #E5E7EB; font-size: 11px; margin-bottom: 2px;">Speed: <span style="font-weight: bold;">${l2.speed} km/h</span> | Volume: <span style="font-weight: bold;">${l2.volume} veh</span></div>
-          <div style="color: #E5E7EB; font-size: 11px; margin-bottom: 2px;">Est. Travel Time: <span style="font-weight: bold; color: #F59E0B;">${l2.travelTime} mins</span></div>
+          <div style="color: #E5E7EB; font-size: 11px; margin-bottom: 2px;">Est. Travel Time: <span style="font-weight: bold; color: #F59E0B;">${l2.travelTime} secs</span></div>
           ${l2.queueLength !== undefined && l2.queueLength > 0 ? `<div style="color: #E5E7EB; font-size: 11px;">Queue Length: <span style="font-weight: bold; color: #EF4444;">${l2.queueLength.toFixed(1)} m</span></div>` : ''}
         </div>
       </div>
@@ -180,7 +180,7 @@ function getConnectionTooltipContent(
       <div style="color: #E5E7EB; font-size: 12px; margin-bottom: 2px;">Link status: <span style="color: ${STATUS_COLORS[status]}; font-weight: bold;">${statusLabel(status)}</span></div>
       <div style="color: #E5E7EB; font-size: 12px; margin-bottom: 2px;">Density: <span style="color:${STATUS_COLORS[status]}; font-weight: bold;">${density}%</span></div>
       <div style="color: #E5E7EB; font-size: 12px; margin-bottom: 2px;">Speed: <span style="font-weight: bold;">${speed} km/h</span> | Volume: <span style="font-weight: bold;">${volume} veh</span></div>
-      <div style="color: #E5E7EB; font-size: 12px; margin-bottom: 2px;">Est. Travel Time: <span style="font-weight: bold; color: #F59E0B;">${travelTime} mins</span></div>
+      <div style="color: #E5E7EB; font-size: 12px; margin-bottom: 2px;">Est. Travel Time: <span style="font-weight: bold; color: #F59E0B;">${travelTime} secs</span></div>
       ${queueLength !== undefined && queueLength > 0 ? `<div style="color: #E5E7EB; font-size: 12px;">Queue Length: <span style="font-weight: bold; color: #EF4444;">${queueLength.toFixed(1)} m</span></div>` : ''}
     </div>
   `;

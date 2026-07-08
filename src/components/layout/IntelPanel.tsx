@@ -740,7 +740,7 @@ export default function IntelPanel({
                   <div className="grid grid-cols-2 gap-2">
                     {[
                       { label: 'Avg Density', value: `${linkStats.avgDensity}%`, color: linkStats.avgDensity > 80 ? '#EF4444' : linkStats.avgDensity > 60 ? '#F97316' : '#22C55E', span: 'col-span-2' },
-                      { label: 'Est. Travel Time', value: `${linkStats.travelMins} min`, color: linkStats.worseStatus === 'critical' ? '#EF4444' : linkStats.worseStatus === 'heavy' ? '#F97316' : '#22C55E' },
+                      { label: 'Est. Travel Time', value: `${linkStats.travelMins} s`, color: linkStats.worseStatus === 'critical' ? '#EF4444' : linkStats.worseStatus === 'heavy' ? '#F97316' : '#22C55E' },
                       { label: 'Avg Speed', value: `${linkStats.avgSpeed} km/h`, color: '#3B82F6' },
                     ].map(({ label, value, color, span }) => (
                       <div key={label} className={`bg-white/[0.03] rounded-lg p-2 border border-white/[0.05] ${span || ''}`}>
