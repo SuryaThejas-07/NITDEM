@@ -1,0 +1,105 @@
+================================================================================
+    NIT DEM SYSTEM MANUAL: INCIDENT DATA FLOW & ML INPUT INTEGRATION
+================================================================================
+
+This document details where incident inputs are captured, how they are structured,
+where they are stored, and how they flow through the NIT DEM system to downstream
+Machine Learning (ML) models.
+
+---
+
+1. DATA CAPTURE INTERFACES (WHERE INPUT IS TAKEN)
+--------------------------------------------------------------------------------
+Operators and supervisors log or edit incidents via two primary forms in the
+Incident Center component:
+* File Reference: [IncidentCenter.tsx](file:///c:/Users/Surya Thejas/OneDrive/Dokumen/Projects/NITC/NITDEM/NITDEM/src/components/pages/IncidentCenter.tsx)
+
+A. "Log Incident" Form (Modal Popup):
+   Accessed via the floating orange "+" button in the bottom right corner of the
+   Incident Center.
+
+B. "Edit Incident" Form (Accordion Panel):
+   Accessed by clicking "Edit" on any active incident token details card.
+
+C. Interactive Map Coordinates Picker:
+   Accessed via the "Select Incident Location" button on the forms, opening the
+   Leaflet location picker overlay.
+   * File Reference: [LocationPicker.tsx](file:///c:/Users/Surya Thejas/OneDrive/Dokumen/Projects/NITC/NITDEM/NITDEM/src/components/map/LocationPicker.tsx)
+
+---
+
+2. INCIDENT DATA SCHEMA & CAPTURED FIELDS
+--------------------------------------------------------------------------------
+Each logged incident complies with the following TypeScript model:
+* File Reference: [types/index.ts](file:///c:/Users/Surya Thejas/OneDrive/Dokumen/Projects/NITC/NITDEM/NITDEM/src/types/index.ts)
+
+* Captured Fields:
+  - id (string): Automatically generated unique UUID string.
+  - timestamp (string): Automatically populated ISO 8601 timestamp on creation.
+  - tokenId (string): Automatically generated supervisor ledger token (format: TK-XXXX).
+  - status (string): Defaults to "pending" on creation (awaiting supervisor review)
+                     and transitions to "active" or "declined".
+  - type (string): Selected from standard types (Road Accident, Road Block,
+                   Vehicle Breakdown, Congestion Alert, Flooding, etc.).
+  - location (string): Stores the raw Link ID string (e.g., "L19"). This is a
+                       strict dropdown selection containing all 26 active links.
+  - priority (string): "low" | "medium" | "high" | "critical".
+  - travelDirection (string): Affected travel direction dropdown selection
+                              (Towards Bmh, Towards Puthiyara, etc.).
+  - lanesBlocked (number): Quantity of lanes affected (stored as integer).
+  - startTime (string): Scheduled starting time (HH:MM format).
+  - endTime (string): Scheduled clearance time (HH:MM format).
+  - description (string): Free-text operator description of the incident.
+  - lat / lng (number): GPS coordinates captured from the Leaflet map marker pin.
+  - nearestJunction (string): Resolved nearest road junction name.
+  - affectedRoads (string[]): Resolved neighboring road names list.
+
+---
+
+3. COORDINATES-TO-LINK RESOLUTION PIPELINE
+--------------------------------------------------------------------------------
+When an operator drops a marker pin on the Leaflet map picker, the coordinates
+are processed to automatically resolve the closest road link:
+1. The picker captures the exact latitude and longitude.
+2. The coordinates are checked against link coordinates mapped inside the dictionary:
+   * File Reference: [linkMaps.ts](file:///c:/Users/Surya Thejas/OneDrive/Dokumen/Projects/NITC/NITDEM/NITDEM/src/hooks/linkMaps.ts)
+3. The closest physical link segment (L1 to L26) is resolved.
+4. The resolved Link ID (e.g. "L19") is prefilled in the "Affected Link" dropdown.
+
+---
+
+4. DATA STORAGE & PERSISTENCE
+--------------------------------------------------------------------------------
+* State Management: 
+  The active state is loaded, modified, and broadcasted globally using the React
+  State store:
+  * File Reference: [useAppStore.ts](file:///c:/Users/Surya Thejas/OneDrive/Dokumen/Projects/NITC/NITDEM/NITDEM/src/hooks/useAppStore.ts)
+* Persistence:
+  To ensure incidents are not lost on browser reload or network disconnection,
+  the array is serialized to JSON and persisted inside the browser's local cache
+  using the storage key:
+  - localStorage key: `nitdem_incidents`
+
+---
+
+5. DOWNSPEED SYSTEM INTEGRATION & CLOUD ML PIPELINE
+--------------------------------------------------------------------------------
+Once an incident is logged, it feeds into the following system components:
+
+A. Cloud ML Model Ingestion:
+   Downstream forecasting models running in the Google Cloud platform ingest
+   these active incidents to calculate real-time road capacity reductions. Storing
+   the raw Link ID (like "L19") rather than free-form text or junction names is
+   critical because it avoids character encoding errors and maps directly to the
+   edges of the ST-GNN prediction graph.
+
+B. AI Disruption Rankings:
+   The Incident Center ranks active incidents based on a calculated disruption
+   score derived from the quantity of `lanesBlocked` and current `junctionDensity`.
+
+C. Operations Dashboard Counters:
+   The total active incidents count (`i.status === 'active' || i.status === 'pending'`)
+   is displayed inside the Dashboard KPI counter and line charts.
+
+D. Command Map Alerts:
+   Markers are plotted on the tactical map to alert operators of active incidents.
