@@ -1,81 +1,109 @@
-========================================================================
-NIT DEM: UPGRADE INSTRUCTIONS - SCALING PREDICTIONS FROM 8 TO 24 LINKS
-========================================================================
+================================================================================
+  EXECUTIVE MIGRATION GUIDE: UPGRADING FORECASTING CHANNELS FROM 8 TO 24 ROAD LINKS
+================================================================================
 
-1. BACKGROUND: WHY IS THIS CHANGE NEEDED?
-----------------------------------------
-Kozhikode's 10-junction network comprises 24 directed links (e.g. L1 to L26). Currently:
-* Live Telemetry (Current Analysis) works for all 24 links because the sensor datasets (`I2.json` / `I2.xlsx`) contain real-time telemetry inputs for the entire network.
-* Traffic Forecasting (20-Min Forecast) is currently configured for only 8 primary links (L1, L19, L13, L6, L17, L18, L3, L16) because the AI ST-GNN prediction output files (`O1.xlsx`) only yield forecasts for these 8 locations.
+1. EXECUTIVE SUMMARY (FOR NON-TECHNICAL TEAM MEMBERS & EVALUATORS)
+────────────────────────────────────────────────────────────────────────────────
+* What is the current situation?
+  Right now, the live sensor data (current traffic) covers the entire network 
+  of 24 road segments. However, the AI-driven "20-Min Forecast" only displays 
+  predictions for 8 primary links (L1, L19, L13, L6, L17, L18, L3, L16). This 
+  is because the AI model's output file (O1.xlsx) only contains predictions for 
+  those 8 segments.
 
-When your ST-GNN model is retrained and scaled up to output forecasting results for all 24 links in `O1.xlsx`, you must make two minor changes in the codebase to visualize those forecasts in the Intelligent Center.
+* What happens when the AI model is upgraded?
+  When the research team updates the AI neural network to generate forecasts for 
+  all 24 road segments, you must instruct the dashboard to stop filtering out 
+  the remaining 16 segments and display them.
 
----
-
-2. PRE-CONFIGURED ARCHITECTURE: WHAT ALREADY WORKS?
----------------------------------------------------
-You DO NOT need to write any new code or change files for the Map color indicators, Hover tooltips, or Alert popups. The system is already fully designed to support 24 links:
-* `linkMaps.ts` maps all 24 link IDs (L1 through L26) to coordinates, road names, and connection keys.
-* `CommandMap.tsx` and `useAppStore.ts` read and group links dynamically based on the data present in `O1.json`.
-
----
-
-3. REQUIRED CODE CHANGES (ONLY TWO FILES)
-------------------------------------------
-
-STEP 1: Update the Data Synchronization Script
-File: sync_datasets.cjs (Line 242)
-
-* Why: The backend script filters predictions. If a link ID is not in this array, the script discards its forecast data and does not write it to `O1.json`.
-* Modification: Open `sync_datasets.cjs`, locate the `linkIds` filter list at line 242, and change it to include all 24 link IDs:
-
-```javascript
-// CHANGE THIS:
-const linkIds = ['L1', 'L19', 'L13', 'L6', 'L17', 'L18', 'L3', 'L16'];
-
-// TO THIS:
-const linkIds = [
-  'L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7', 'L8', 'L9', 'L10', 
-  'L11', 'L12', 'L13', 'L14', 'L15', 'L16', 'L17', 'L18', 'L19', 'L20', 
-  'L21', 'L22', 'L23', 'L24', 'L25', 'L26'
-];
-```
-After updating the file, trigger the sync cycle to regenerate a full dataset:
-```bash
-node sync_datasets.cjs
-```
-
-────────────────────────────────────────────────────────────────────────
-
-STEP 2: Update the Intelligent Center Filter list
-File: src/components/layout/IntelPanel.tsx (Line 1185)
-
-* Why: The sidebar has a hardcoded array helper (`allStgnnLinks`) that filters which forecast recommendation cards to show.
-* Modification: Open `IntelPanel.tsx`, locate the `allStgnnLinks` array at line 1185, and update it to list all 24 link IDs:
-
-```typescript
-// CHANGE THIS:
-const allStgnnLinks = ['L19', 'L13', 'L6', 'L17', 'L18', 'L1', 'L16', 'L3'];
-
-// TO THIS:
-const allStgnnLinks = [
-  'L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7', 'L8', 'L9', 'L10', 
-  'L11', 'L13', 'L14', 'L15', 'L16', 'L17', 'L18', 'L19', 'L20', 'L21', 
-  'L22', 'L23', 'L24', 'L26'
-];
-```
+* What is the technical effort?
+  No new software features or styling rules need to be written. The dashboard 
+  is already pre-configured to render all 24 lanes. You only need to make 
+  adjustments to exactly TWO configuration arrays in the code.
 
 ---
 
-4. VERIFYING SUCCESS
---------------------
-Once both files are saved:
-1. Recompile the production bundle:
+2. ARCHITECTURE DIAGRAM (HOW PREDICTIONS FLOW)
+────────────────────────────────────────────────────────────────────────────────
+
+   [ upgraded O1.xlsx ]  <── Contains AI predictions for all 24 links
+            │
+            ▼
+   ┌────────────────────────────────────────────────────────┐
+   │ 1. sync_datasets.cjs (Ingestion Pipeline)              │
+   │    -> Change line 242 to allow all 24 links.           │
+   │    -> Compiles Excel columns into public/O1.json       │
+   ┌─── └────────────────────────────────────────────────────────┘
+   │
+   ▼ (React Application Loads Data)
+   ┌────────────────────────────────────────────────────────┐
+   │ 2. src/components/layout/IntelPanel.tsx                │
+   │    -> Change line 1185 (allStgnnLinks list)            │
+   │    -> Exposes forecast cards in the sidebar.           │
+   └────────────────────────────────────────────────────────┘
+            │
+            ▼
+   [ Map Tooltips & Sidebar display 24-link forecasts automatically! ]
+
+---
+
+3. EXACTLY WHICH FILES TO CHANGE (STEP-BY-STEP)
+────────────────────────────────────────────────────────────────────────────────
+
+📁 STEP 1: Tell the Backend to Process 24 Links
+File Location: c:\Users\Surya Thejas\OneDrive\Dokumen\Projects\NITC\NITDEM\NITDEM\sync_datasets.cjs
+
+1. Open `sync_datasets.cjs` using any code editor.
+2. Locate line 242:
+   ```javascript
+   const linkIds = ['L1', 'L19', 'L13', 'L6', 'L17', 'L18', 'L3', 'L16'];
+   ```
+3. Replace that line with this expanded list containing all 24 road link IDs:
+   ```javascript
+   const linkIds = [
+     'L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7', 'L8', 'L9', 'L10', 
+     'L11', 'L12', 'L13', 'L14', 'L15', 'L16', 'L17', 'L18', 'L19', 'L20', 
+     'L21', 'L22', 'L23', 'L24', 'L25', 'L26'
+   ];
+   ```
+4. Run the data sync command in your terminal to build the new JSON database file:
+   ```bash
+   node sync_datasets.cjs
+   ```
+
+────────────────────────────────────────────────────────────────────────────────
+
+📁 STEP 2: Tell the Sidebar Panel to Display 24 Links
+File Location: c:\Users\Surya Thejas\OneDrive\Dokumen\Projects\NITC\NITDEM\NITDEM\src\components\layout\IntelPanel.tsx
+
+1. Open `IntelPanel.tsx` in your editor.
+2. Locate line 1185:
+   ```typescript
+   const allStgnnLinks = ['L19', 'L13', 'L6', 'L17', 'L18', 'L1', 'L16', 'L3'];
+   ```
+3. Replace that line with all 24 link IDs to allow them to be rendered in the sidebar:
+   ```typescript
+   const allStgnnLinks = [
+     'L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7', 'L8', 'L9', 'L10', 
+     'L11', 'L13', 'L14', 'L15', 'L16', 'L17', 'L18', 'L19', 'L20', 'L21', 
+     'L22', 'L23', 'L24', 'L26'
+   ];
+   ```
+
+---
+
+4. RE-BUILDING AND DEPLOYING
+────────────────────────────────────────────────────────────────────────────────
+After completing both changes, run the standard build and deploy steps in your command terminal:
+
+1. Compile the production bundle:
    ```bash
    npm run build
    ```
-2. Deploy the build:
+2. Upload the updated app to Firebase Hosting:
    ```bash
    firebase deploy
    ```
-3. Open the browser and switch to "20-Min Forecast". The color of every road segment will now dynamically update based on the new forecasted outputs in your newly synchronized `O1.json`.
+
+When you open the web application at https://traffic-density-monitor.web.app and toggle the "20-Min Forecast" tab, the entire map network color code and the Intelligent Center recommendations panel will seamlessly display all 24-link forecasting metrics.
+================================================================================
