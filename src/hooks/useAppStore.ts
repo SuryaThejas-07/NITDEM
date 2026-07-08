@@ -165,6 +165,25 @@ export function useAppStore() {
     }>;
   }>>({});
 
+  const [liveLinkStatuses, setLiveLinkStatuses] = useState<Record<string, {
+    status: 'free' | 'moderate' | 'heavy' | 'critical';
+    density: number;
+    speed: number;
+    volume: number;
+    travelTime: number;
+    queueLength?: number;
+    links?: Array<{
+      id: string;
+      direction: string;
+      status: 'free' | 'moderate' | 'heavy' | 'critical';
+      density: number;
+      speed: number;
+      volume: number;
+      travelTime: number;
+      queueLength?: number;
+    }>;
+  }>>({});
+
   // What-If Simulation Sandbox states
   const [isWhatIfActive, setIsWhatIfActive] = useState<boolean>(false);
   const [whatIfLanesBlocked, setWhatIfLanesBlocked] = useState<number>(0);
@@ -511,6 +530,8 @@ export function useAppStore() {
       }>;
     }> = {};
 
+    const liveStatuses: Record<string, typeof newStatuses[string]> = {};
+
     const NODE_BY_ID = Object.fromEntries(nodes.map(n => [n.id, n]));
 
     Object.entries(connectionToLinks).forEach(([key, [lOut, lIn]]) => {
@@ -521,6 +542,78 @@ export function useAppStore() {
       const nodeB = NODE_BY_ID[bId];
       const aName = nodeA?.name || aId;
       const bName = nodeB?.name || bId;
+
+      const isCoordsActive = coordsLinkData.length > 0 && uniqueTimestamps.length > 0;
+
+      // Always calculate live telemetry metrics for liveStatuses
+      const outRecord = records.find(r => r.linkId === lOut);
+      let outMetricsLive;
+      if (outRecord) {
+        const dens = Math.max(5, Math.min(100, Math.round(
+          isCoordsActive ? outRecord.occupancy : (outRecord.occupancy * 100)
+        )));
+        const status = dens >= 70 ? 'critical' : dens >= 55 ? 'heavy' : dens >= 35 ? 'moderate' : 'free';
+        outMetricsLive = {
+          status,
+          density: dens,
+          speed: Math.round(outRecord.speed) || 35,
+          volume: Math.round(outRecord.volume) || 150,
+          travelTime: parseFloat(outRecord.travelTime.toFixed(1)) || 1.2,
+          queueLength: outRecord.queueLength || 0
+        };
+      } else {
+        const seedVal = Math.sin(playbackIndex / 4 + lOut.charCodeAt(0));
+        const density = Math.round(25 + seedVal * 10);
+        const status = density >= 70 ? 'critical' : density >= 55 ? 'heavy' : density >= 35 ? 'moderate' : 'free';
+        const speed = Math.round(45 - seedVal * 8);
+        const volume = Math.round(100 + seedVal * 30);
+        const travelTime = parseFloat((0.6 * 60 / speed).toFixed(1));
+        outMetricsLive = { status, density, speed, volume, travelTime };
+      }
+
+      const inRecord = records.find(r => r.linkId === lIn);
+      let inMetricsLive;
+      if (inRecord) {
+        const dens = Math.max(5, Math.min(100, Math.round(
+          isCoordsActive ? inRecord.occupancy : (inRecord.occupancy * 100)
+        )));
+        const status = dens >= 70 ? 'critical' : dens >= 55 ? 'heavy' : dens >= 35 ? 'moderate' : 'free';
+        inMetricsLive = {
+          status,
+          density: dens,
+          speed: Math.round(inRecord.speed) || 35,
+          volume: Math.round(inRecord.volume) || 150,
+          travelTime: parseFloat(inRecord.travelTime.toFixed(1)) || 1.2,
+          queueLength: inRecord.queueLength || 0
+        };
+      } else {
+        const seedVal = Math.sin(playbackIndex / 4 + lIn.charCodeAt(0));
+        const density = Math.round(25 + seedVal * 10);
+        const status = density >= 70 ? 'critical' : density >= 55 ? 'heavy' : density >= 35 ? 'moderate' : 'free';
+        const speed = Math.round(45 - seedVal * 8);
+        const volume = Math.round(100 + seedVal * 30);
+        const travelTime = parseFloat((0.6 * 60 / speed).toFixed(1));
+        inMetricsLive = { status, density, speed, volume, travelTime };
+      }
+
+      const statusOrder = { free: 0, moderate: 1, heavy: 2, critical: 3 } as const;
+      type LinkStatus = 'free' | 'moderate' | 'heavy' | 'critical';
+      const sOutLive = outMetricsLive.status as LinkStatus;
+      const sInLive = inMetricsLive.status as LinkStatus;
+      const worstStatusLive = statusOrder[sOutLive] > statusOrder[sInLive] ? sOutLive : sInLive;
+
+      liveStatuses[key] = {
+        status: worstStatusLive,
+        density: Math.round((outMetricsLive.density + inMetricsLive.density) / 2),
+        speed: Math.round((outMetricsLive.speed + inMetricsLive.speed) / 2),
+        volume: outMetricsLive.volume + inMetricsLive.volume,
+        travelTime: parseFloat(((outMetricsLive.travelTime + inMetricsLive.travelTime) / 2).toFixed(1)),
+        queueLength: (outMetricsLive.queueLength || 0) + (inMetricsLive.queueLength || 0),
+        links: [
+          { id: lOut, direction: `${aName} ➔ ${bName}`, ...outMetricsLive, status: sOutLive },
+          { id: lIn, direction: `${bName} ➔ ${aName}`, ...inMetricsLive, status: sInLive }
+        ]
+      };
 
       if (isPrediction) {
         const parts = selectedTime.split(':').map(Number);
@@ -593,8 +686,6 @@ export function useAppStore() {
           inMetrics = { status, density, speed, volume, travelTime };
         }
 
-        const statusOrder = { free: 0, moderate: 1, heavy: 2, critical: 3 } as const;
-        type LinkStatus = 'free' | 'moderate' | 'heavy' | 'critical';
         const sOut = outMetrics.status as LinkStatus;
         const sIn = inMetrics.status as LinkStatus;
         const worstStatus = statusOrder[sOut] > statusOrder[sIn] ? sOut : sIn;
@@ -607,80 +698,12 @@ export function useAppStore() {
           travelTime: parseFloat(((outMetrics.travelTime + inMetrics.travelTime) / 2).toFixed(1)),
           queueLength: (outMetrics.queueLength || 0) + (inMetrics.queueLength || 0),
           links: [
-            { id: lOut, direction: `${aName} ➔ ${bName}`, ...outMetrics, status: outMetrics.status as LinkStatus },
-            { id: lIn, direction: `${bName} ➔ ${aName}`, ...inMetrics, status: inMetrics.status as LinkStatus }
+            { id: lOut, direction: `${aName} ➔ ${bName}`, ...outMetrics, status: sOut },
+            { id: lIn, direction: `${bName} ➔ ${aName}`, ...inMetrics, status: sIn }
           ]
         };
       } else {
-        // Telemetry Data Ingestion
-        const outRecord = records.find(r => r.linkId === lOut);
-        let outMetrics;
-        if (outRecord) {
-          const dens = Math.max(5, Math.min(100, Math.round(
-            isCoordsActive ? outRecord.occupancy : (outRecord.occupancy * 100)
-          )));
-          const status = dens >= 70 ? 'critical' : dens >= 55 ? 'heavy' : dens >= 35 ? 'moderate' : 'free';
-          outMetrics = {
-            status,
-            density: dens,
-            speed: Math.round(outRecord.speed) || 35,
-            volume: Math.round(outRecord.volume) || 150,
-            travelTime: parseFloat(outRecord.travelTime.toFixed(1)) || 1.2,
-            queueLength: outRecord.queueLength || 0
-          };
-        } else {
-          const seedVal = Math.sin(playbackIndex / 4 + lOut.charCodeAt(0));
-          const density = Math.round(25 + seedVal * 10);
-          const status = density >= 70 ? 'critical' : density >= 55 ? 'heavy' : density >= 35 ? 'moderate' : 'free';
-          const speed = Math.round(45 - seedVal * 8);
-          const volume = Math.round(100 + seedVal * 30);
-          const travelTime = parseFloat((0.6 * 60 / speed).toFixed(1));
-          outMetrics = { status, density, speed, volume, travelTime };
-        }
-
-        const inRecord = records.find(r => r.linkId === lIn);
-        let inMetrics;
-        if (inRecord) {
-          const dens = Math.max(5, Math.min(100, Math.round(
-            isCoordsActive ? inRecord.occupancy : (inRecord.occupancy * 100)
-          )));
-          const status = dens >= 70 ? 'critical' : dens >= 55 ? 'heavy' : dens >= 35 ? 'moderate' : 'free';
-          inMetrics = {
-            status,
-            density: dens,
-            speed: Math.round(inRecord.speed) || 35,
-            volume: Math.round(inRecord.volume) || 150,
-            travelTime: parseFloat(inRecord.travelTime.toFixed(1)) || 1.2,
-            queueLength: inRecord.queueLength || 0
-          };
-        } else {
-          const seedVal = Math.sin(playbackIndex / 4 + lIn.charCodeAt(0));
-          const density = Math.round(25 + seedVal * 10);
-          const status = density >= 70 ? 'critical' : density >= 55 ? 'heavy' : density >= 35 ? 'moderate' : 'free';
-          const speed = Math.round(45 - seedVal * 8);
-          const volume = Math.round(100 + seedVal * 30);
-          const travelTime = parseFloat((0.6 * 60 / speed).toFixed(1));
-          inMetrics = { status, density, speed, volume, travelTime };
-        }
-
-        const statusOrder = { free: 0, moderate: 1, heavy: 2, critical: 3 } as const;
-        type LinkStatus = 'free' | 'moderate' | 'heavy' | 'critical';
-        const sOut = outMetrics.status as LinkStatus;
-        const sIn = inMetrics.status as LinkStatus;
-        const worstStatus = statusOrder[sOut] > statusOrder[sIn] ? sOut : sIn;
-
-        newStatuses[key] = {
-          status: worstStatus,
-          density: Math.round((outMetrics.density + inMetrics.density) / 2),
-          speed: Math.round((outMetrics.speed + inMetrics.speed) / 2),
-          volume: outMetrics.volume + inMetrics.volume,
-          travelTime: parseFloat(((outMetrics.travelTime + inMetrics.travelTime) / 2).toFixed(1)),
-          queueLength: (outMetrics.queueLength || 0) + (inMetrics.queueLength || 0),
-          links: [
-            { id: lOut, direction: `${aName} ➔ ${bName}`, ...outMetrics, status: outMetrics.status as LinkStatus },
-            { id: lIn, direction: `${bName} ➔ ${aName}`, ...inMetrics, status: inMetrics.status as LinkStatus }
-          ]
-        };
+        newStatuses[key] = liveStatuses[key];
       }
     });
 
@@ -716,6 +739,7 @@ export function useAppStore() {
     }
 
     setLinkStatuses(newStatuses);
+    setLiveLinkStatuses(liveStatuses);
 
     setNodes(prevNodes => prevNodes.map(node => {
       const connectedLinkIds = nodeLinkConnections[node.id] || [];
@@ -1488,6 +1512,7 @@ export function useAppStore() {
     predictionWindow,
     setPredictionWindow,
     linkStatuses,
+    liveLinkStatuses,
     enableGcsIncidents,
     setEnableGcsIncidents,
     gcsPredictions,

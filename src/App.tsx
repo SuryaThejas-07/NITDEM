@@ -115,6 +115,7 @@ export default function App() {
             onUpdateDroneRoute={store.updateDroneRoute}
             isDark={store.isDark}
             linkStatuses={store.linkStatuses}
+            liveLinkStatuses={store.liveLinkStatuses}
             incidents={store.incidents}
             events={store.events}
           />
@@ -259,7 +260,7 @@ export default function App() {
                   selectedLinkId={store.selectedLinkId}
                   drones={store.drones}
                   predictionWindow={store.predictionWindow}
-                  linkStatuses={store.linkStatuses}
+                  linkStatuses={store.liveLinkStatuses}
                   incidents={store.incidents}
                   onClearSelection={() => {
                     store.setSelectedNode(null);
@@ -324,7 +325,7 @@ export default function App() {
                           selectedLinkId={store.selectedLinkId}
                           drones={store.drones}
                           predictionWindow={store.predictionWindow}
-                          linkStatuses={store.linkStatuses}
+                          linkStatuses={store.liveLinkStatuses}
                           incidents={store.incidents}
                           onClearSelection={() => {
                             store.setSelectedNode(null);

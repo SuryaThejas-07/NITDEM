@@ -34,6 +34,23 @@ interface CommandMapProps {
       speed: number;
       volume: number;
       travelTime: number;
+    }>;
+  }>;
+  liveLinkStatuses: Record<string, {
+    status: 'free' | 'moderate' | 'heavy' | 'critical';
+    density: number;
+    speed: number;
+    volume: number;
+    travelTime: number;
+    queueLength?: number;
+    links?: Array<{
+      id: string;
+      direction: string;
+      status: 'free' | 'moderate' | 'heavy' | 'critical';
+      density: number;
+      speed: number;
+      volume: number;
+      travelTime: number;
       queueLength?: number;
     }>;
   }>;
@@ -169,7 +186,7 @@ function getConnectionTooltipContent(
   `;
 }
 
-export default function CommandMap({ nodes, selectedNode, onNodeSelect, selectedLink, onLinkSelect, drones, predictionWindow, onPredictionWindowChange, onDroneClick, currentRole, onUpdateDroneRoute, isDark, linkStatuses, incidents, events }: CommandMapProps) {
+export default function CommandMap({ nodes, selectedNode, onNodeSelect, selectedLink, onLinkSelect, drones, predictionWindow, onPredictionWindowChange, onDroneClick, currentRole, onUpdateDroneRoute, isDark, linkStatuses, liveLinkStatuses, incidents, events }: CommandMapProps) {
   const NODE_BY_ID = Object.fromEntries(nodes.map(node => [node.id, node]));
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMap = useRef<L.Map | null>(null);
@@ -313,6 +330,7 @@ export default function CommandMap({ nodes, selectedNode, onNodeSelect, selected
       if (!a || !b) return;
       const key = `${aId}-${bId}`;
       const stats = linkStatuses[key] || linkStatuses[`${bId}-${aId}`];
+      const liveStats = liveLinkStatuses[key] || liveLinkStatuses[`${bId}-${aId}`];
       const status = stats?.status || 'free';
       const line = L.polyline([[a.lat, a.lng], [b.lat, b.lng]], {
         color: STATUS_COLORS[status],
@@ -320,7 +338,7 @@ export default function CommandMap({ nodes, selectedNode, onNodeSelect, selected
         opacity: 0.6,
         className: 'cursor-pointer',
       }).addTo(map);
-      line.bindTooltip(getConnectionTooltipContent(a, b, predictionWindow, stats), {
+      line.bindTooltip(getConnectionTooltipContent(a, b, 'current', liveStats), {
         permanent: false,
         sticky: true,
         direction: 'top',
@@ -761,9 +779,10 @@ export default function CommandMap({ nodes, selectedNode, onNodeSelect, selected
         opacity: isSel ? 1.0 : (hasSelection ? 0.35 : 0.6),
       });
 
-      line.setTooltipContent(getConnectionTooltipContent(a, b, predictionWindow, stats));
+      const liveStats = liveLinkStatuses[key] || liveLinkStatuses[`${bId}-${aId}`];
+      line.setTooltipContent(getConnectionTooltipContent(a, b, 'current', liveStats));
     });
-  }, [predictionWindow, mapReady, selectedNode, selectedLink, linkStatuses, nodes]);
+  }, [predictionWindow, mapReady, selectedNode, selectedLink, linkStatuses, liveLinkStatuses, nodes]);
 
   return (
     <div className="relative w-full h-full">
