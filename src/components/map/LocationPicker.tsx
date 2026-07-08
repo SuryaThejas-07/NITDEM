@@ -93,6 +93,30 @@ export default function LocationPicker({ onClose, onConfirm, initialLat, initial
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (!leafletMap.current) return;
+    const map = leafletMap.current;
+    
+    map.invalidateSize();
+    
+    const interval = setInterval(() => {
+      map.invalidateSize();
+    }, 200);
+
+    const resizeObserver = new ResizeObserver(() => {
+      map.invalidateSize();
+    });
+
+    if (mapRef.current) {
+      resizeObserver.observe(mapRef.current);
+    }
+
+    return () => {
+      clearInterval(interval);
+      resizeObserver.disconnect();
+    };
+  }, [mapRef]);
+
   // Sync state coordinates to Leaflet marker & map position
   useEffect(() => {
     if (!leafletMap.current || !position || drawMode !== 'pin') return;

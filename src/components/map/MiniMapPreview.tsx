@@ -29,7 +29,10 @@ export default function MiniMapPreview({ lat, lng, label, height = 180, color = 
       ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
       : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
     L.tileLayer(tileUrl, {
-      subdomains: 'abcd', maxZoom: 19,
+      subdomains: 'abcd',
+      maxZoom: 19,
+      noWrap: true,
+      bounds: L.latLngBounds([11.0, 75.5], [11.5, 76.0]),
     }).addTo(map);
 
     const pinIcon = L.divIcon({
@@ -50,6 +53,10 @@ export default function MiniMapPreview({ lat, lng, label, height = 180, color = 
     }
 
     leafletMap.current = map;
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 100);
+
     return () => { map.remove(); leafletMap.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

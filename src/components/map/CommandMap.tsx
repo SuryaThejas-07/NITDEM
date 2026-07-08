@@ -284,6 +284,33 @@ export default function CommandMap({ nodes, selectedNode, onNodeSelect, selected
     }, 4200);
   };
 
+  // Invalidate map size to prevent gray/black margins when sidebar or layout container resizes
+  useEffect(() => {
+    if (!leafletMap.current) return;
+    const map = leafletMap.current;
+    
+    // Invalidate size immediately
+    map.invalidateSize();
+    
+    // Periodically invalidate size to handle panel opening/closing animations
+    const interval = setInterval(() => {
+      map.invalidateSize();
+    }, 200);
+
+    const resizeObserver = new ResizeObserver(() => {
+      map.invalidateSize();
+    });
+
+    if (mapRef.current) {
+      resizeObserver.observe(mapRef.current);
+    }
+
+    return () => {
+      clearInterval(interval);
+      resizeObserver.disconnect();
+    };
+  }, [selectedNode, selectedLink, mapReady]);
+
   useEffect(() => {
     if (!mapRef.current || leafletMap.current) return;
 
