@@ -1,0 +1,55 @@
+NIT DEM - UPGRADE INSTRUCTIONS: SCALING PREDICTIONS FROM 8 TO 24 LINKS
+
+If your ST-GNN prediction dataset is updated from the 8 primary links to include all 24 links, the following two specific modifications must be made in the codebase to enable full visualization in the Intelligent Center, notifications, and hover tooltips.
+
+---
+
+### STEP 1: Update the Data Synchronization Script
+File: sync_datasets.cjs (Line 242)
+
+* Current Implementation:
+  Currently, the backend synchronization script only filters and generates forecast entries for 8 hardcoded link IDs:
+  ```javascript
+  const linkIds = ['L1', 'L19', 'L13', 'L6', 'L17', 'L18', 'L3', 'L16'];
+  ```
+
+* Required Modification:
+  Change this array to include all 24 active link IDs from the network layout:
+  ```javascript
+  const linkIds = [
+    'L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7', 'L8', 'L9', 'L10', 
+    'L11', 'L12', 'L13', 'L14', 'L15', 'L16', 'L17', 'L18', 'L19', 'L20', 
+    'L21', 'L22', 'L23', 'L24', 'L25', 'L26'
+  ];
+  ```
+  After making this change, run the sync command to regenerate a complete `O1.json`:
+  ```bash
+  node sync_datasets.cjs
+  ```
+
+---
+
+### STEP 2: Update the Intelligent Center Sidebar Filter
+File: src/components/layout/IntelPanel.tsx (Line 1185)
+
+* Current Implementation:
+  The Intelligent Center limits its ST-GNN forecast listing to the 8 primary links using a hardcoded array filter:
+  ```typescript
+  const allStgnnLinks = ['L19', 'L13', 'L6', 'L17', 'L18', 'L1', 'L16', 'L3'];
+  ```
+
+* Required Modification:
+  Update the array to contain all 24 link IDs. This will automatically enable the 20-Minute Forecast cards for all links across the entire sidebar overview, junction detail panels, and corridor lists:
+  ```typescript
+  const allStgnnLinks = [
+    'L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7', 'L8', 'L9', 'L10', 
+    'L11', 'L13', 'L14', 'L15', 'L16', 'L17', 'L18', 'L19', 'L20', 'L21', 
+    'L22', 'L23', 'L24', 'L26'
+  ];
+  ```
+
+---
+
+### NOTE ON HOVER TOOLTIPS, MAP COLORS, & NOTIFICATIONS:
+* **No code changes required**: The core store (`useAppStore.ts`), connection definitions (`CommandMap.tsx`), and road coordinate lookups (`linkMaps.ts`) are already fully configured to handle all 24 links. 
+* Once `O1.json` is updated with the new link data (Step 1) and the Intelligent Center filter is updated (Step 2), all 24 links will automatically display forecasted colors, live notifications, hover tooltips, and recommended strategies dynamically.
