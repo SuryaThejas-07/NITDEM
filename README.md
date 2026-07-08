@@ -1,13 +1,34 @@
 # NIT DEM — AI-Powered Traffic Intelligence & UAV Monitoring Platform
 
-A frontend-only Smart City Traffic Intelligence Command Center for Kozhikode, Kerala. Built with React, TypeScript, Vite, Tailwind CSS, Framer Motion, and Leaflet.js.
+A frontend Smart City Traffic Intelligence Command Center for Kozhikode, Kerala, integrated with a cloud data ingestion pipeline. Built with React, TypeScript, Vite, Tailwind CSS, Framer Motion, and Leaflet.js.
 
-## Login Credentials
+---
 
-- **Username:** `admin`
-- **Password:** `password`
+## 🔐 Login Credentials
 
-## Run in VS Code
+* **Username:** `admin`
+* **Password:** `password`
+
+---
+
+## 📡 Data Ingestion Pipeline (GCS Sync)
+
+The project reads actual traffic telemetry and ST-GNN forecasting predictions from Google Cloud Storage (GCS) using the ingestion pipeline script:
+
+```bash
+# Pulls source Excel sheets (I1a, I1b, I2, O1) from GCS and parses them into static JSONs
+node sync_datasets.cjs
+```
+
+* **Data Files Generated in `/public`**:
+  * `I1a.json` ➔ Corridor coordinate geometries.
+  * `I1b.json` ➔ Drone flight routes and coordinates.
+  * `I2.json` ➔ Real-time traffic sensor telemetry logs.
+  * `O1.json` ➔ ST-GNN AI traffic forecasting predictions.
+
+---
+
+## 🚀 Run & Deploy Instructions
 
 ### 1. Prerequisites
 Install [Node.js](https://nodejs.org/) (version 18 or higher). Check with:
@@ -16,83 +37,54 @@ node -v
 npm -v
 ```
 
-### 2. Open the project
-- Unzip the project folder.
-- Open the folder in VS Code (`File → Open Folder...`).
-
-### 3. Install dependencies
-Open a terminal in VS Code (`` Ctrl+` ``) and run:
+### 2. Install dependencies
 ```bash
 npm install
 ```
 
-### 4. Start the development server
+### 3. Start the Local Development Server
 ```bash
 npm run dev
 ```
+Open `http://localhost:5173` in your browser.
 
-This starts Vite's dev server (usually at `http://localhost:5173`). Open that URL in your browser.
-
-### 5. Build for production (optional)
+### 4. Build & Deploy to Firebase
 ```bash
+# Compile TypeScript and build production bundle
 npm run build
-npm run preview
+
+# Deploy to Firebase Hosting
+firebase deploy
 ```
 
-## Project Structure
+---
+
+## 📁 Project Structure
 
 ```
 nitdem/
 ├── src/
 │   ├── components/
-│   │   ├── layout/      → Sidebar, Header, IntelPanel, ToastStack, MobileDrawer
-│   │   ├── map/          → CommandMap (Leaflet)
-│   │   └── pages/        → Login, Dashboard, AIAnalytics, TrafficForecasting,
-│   │                        IncidentCenter, DroneOperations,
-│   │                        HistoricalIntelligence, AlertGenerator, Reports
-│   ├── data/             → Static traffic node, drone, token, weather data
-│   ├── hooks/            → useAppStore — central state (localStorage-backed)
-│   ├── types/            → TypeScript interfaces
-│   ├── utils/            → Formatting helpers
-│   ├── App.tsx           → Main layout shell & routing
-│   ├── main.tsx          → Entry point
-│   └── index.css         → Tailwind + global styles
-├── index.html
-├── package.json
-├── vite.config.ts
-├── tailwind.config.js
-└── tsconfig.json
+│   │   ├── layout/      → Sidebar, Header, IntelPanel (Intelligent Center), ToastStack, MobileDrawer
+│   │   ├── map/         → CommandMap (Leaflet), LocationPicker (overlay modal)
+│   │   └── pages/       → Dashboard, AIAnalytics, TrafficForecasting, IncidentCenter, DroneOperations
+│   ├── hooks/           → useAppStore (global state & playbacks), linkMaps (link ID dictionaries)
+│   ├── types/           → TypeScript interfaces
+│   ├── App.tsx          → Main routing shell
+│   └── main.tsx         → App entry point
+├── sync_datasets.cjs    → GCS Data Ingestion & Compile pipeline
+├── PROJECT_OVERVIEW.txt  → Detailed system manual and flow diagrams
+└── 24_links_upgrade_instructions.txt → Step-by-step instructions to scale forecasting
 ```
 
-## Features
+---
 
-- **Authentication** — glassmorphism login with animated success/failure states.
-- **Command Map** — Leaflet dark tactical map centered on Kozhikode with an
-  operational monitoring zone polygon, 5 traffic nodes, corridor routes
-  colored by congestion, and live drone markers.
-- **Dashboard** — animated KPI counters, vehicle flow & traffic score charts,
-  node status table.
-- **AI Analytics** — vehicle classification, model accuracy radial charts,
-  hourly breakdown.
-- **Traffic Forecasting** — ST-GNN event simulation with realistic loading
-  sequence and AI recommendations.
-- **Incident Center** — floating "Log Incident" button, modal form, automatic
-  token generation.
-- **Drone Operations** — live UAV fleet status with simulated movement between
-  nodes every few seconds.
-- **Historical Intelligence** — timeline of all tokens with filter and detail
-  modal.
-- **Alert Generator** — demo page to create any alert type and generate
-  tokens (format `TK-XXXX`).
-- **Reports** — traffic, incident, drone, and AI prediction summaries with
-  export buttons (UI only).
-- **Notifications** — top-right toast stack for new tokens/alerts.
-- **Persistence** — tokens and incidents are stored in `localStorage`.
+## 🛠️ Key Features
 
-## Notes
-
-- All data is simulated/mocked — there is no backend or database.
-- Theme toggle switches a `light-mode` class; dark mode is the primary
-  designed experience.
-- Map tiles load from CartoDB's public dark basemap (requires internet
-  connectivity in the browser to display map tiles).
+* **Command Map** — Leaflet dark tactical map with bidirectional connection tooltips displaying live traffic speed, density, and queue length.
+* **Incident Center & ML Inputs** — Form dropdown to log incidents directly against raw Affected Link IDs (`L1-L26`), matching standards expected by cloud-based ML models.
+* **Detailed Incident Logs** — Log incident type, travel directions (*Towards Bmh, Towards Puthiyara, etc.*), lanes blocked, start/end times, and accepting/declining incident tokens.
+* **AI Disruption Rankings** — Automatically ranks incidents from most disruptive to least based on lane closures and junction congestion.
+* **What-If Simulation Sandbox** — Dynamic sliders allowing operators to block lanes, increase intensity, or apply signal retiming offsets to instantly preview predicted flow outcomes.
+* **Drone Surveillance Flight** — Flight paths plotted on Leaflet maps with live stream feeds, battery tracking, and dispatch controls.
+* **AI Analytics Page** — Accurate historic deviation charts comparing actual density vs. ST-GNN forecasted trends.
