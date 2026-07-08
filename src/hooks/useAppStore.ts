@@ -153,6 +153,16 @@ export function useAppStore() {
     volume: number;
     travelTime: number;
     queueLength?: number;
+    links?: Array<{
+      id: string;
+      direction: string;
+      status: 'free' | 'moderate' | 'heavy' | 'critical';
+      density: number;
+      speed: number;
+      volume: number;
+      travelTime: number;
+      queueLength?: number;
+    }>;
   }>>({});
 
   // What-If Simulation Sandbox states
@@ -489,108 +499,188 @@ export function useAppStore() {
       volume: number;
       travelTime: number;
       queueLength?: number;
+      links?: Array<{
+        id: string;
+        direction: string;
+        status: 'free' | 'moderate' | 'heavy' | 'critical';
+        density: number;
+        speed: number;
+        volume: number;
+        travelTime: number;
+        queueLength?: number;
+      }>;
     }> = {};
+
+    const NODE_BY_ID = Object.fromEntries(nodes.map(n => [n.id, n]));
 
     Object.entries(connectionToLinks).forEach(([key, [lOut, lIn]]) => {
       const records = activeLinks.filter(l => l.linkId === lOut || l.linkId === lIn);
       const isPrediction = predictionWindow !== 'current';
+      const [aId, bId] = key.split('-');
+      const nodeA = NODE_BY_ID[aId];
+      const nodeB = NODE_BY_ID[bId];
+      const aName = nodeA?.name || aId;
+      const bName = nodeB?.name || bId;
 
       if (isPrediction) {
         const parts = selectedTime.split(':').map(Number);
         const targetSec = (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
         const bucketStartSec = Math.floor(targetSec / 1200) * 1200;
 
-        const predRecords = gcsPredictions.filter(p => p.link === lOut || p.link === lIn);
-        if (predRecords.length > 0) {
-          let targetRecords = predRecords.filter(p => p.predictionHorizonSec === bucketStartSec);
+        // Compute lOut prediction metrics
+        const outPredRecords = gcsPredictions.filter(p => p.link === lOut);
+        let outMetrics;
+        if (outPredRecords.length > 0) {
+          let targetRecords = outPredRecords.filter(p => p.predictionHorizonSec === bucketStartSec);
           if (targetRecords.length === 0) {
-            const maxHorizon = Math.max(...predRecords.map(p => p.predictionHorizonSec));
-            targetRecords = predRecords.filter(p => p.predictionHorizonSec === maxHorizon);
+            const maxHorizon = Math.max(...outPredRecords.map(p => p.predictionHorizonSec));
+            targetRecords = outPredRecords.filter(p => p.predictionHorizonSec === maxHorizon);
           }
-          
-          const avgQueuePred = targetRecords.reduce((sum, p) => sum + p.queuePred, 0) / targetRecords.length;
-          const avgDelayPred = targetRecords.reduce((sum, p) => sum + p.delayPred, 0) / targetRecords.length;
-          
+          const avgQueuePred = targetRecords.reduce((sum, p) => sum + p.queuePred, 0) / (targetRecords.length || 1);
+          const avgDelayPred = targetRecords.reduce((sum, p) => sum + p.delayPred, 0) / (targetRecords.length || 1);
           const severityLevels = targetRecords.map(p => p.severityLevel);
           let severity: 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL' = 'LOW';
           if (severityLevels.includes('CRITICAL')) severity = 'CRITICAL';
           else if (severityLevels.includes('HIGH')) severity = 'HIGH';
           else if (severityLevels.includes('MODERATE')) severity = 'MODERATE';
-          
-          const statusMap: Record<typeof severity, 'free' | 'moderate' | 'heavy' | 'critical'> = {
-            LOW: 'free',
-            MODERATE: 'moderate',
-            HIGH: 'heavy',
-            CRITICAL: 'critical',
-          };
-          
+          const statusMap = { LOW: 'free', MODERATE: 'moderate', HIGH: 'heavy', CRITICAL: 'critical' } as const;
           const status = statusMap[severity];
           const density = Math.min(100, Math.max(5, Math.round(avgQueuePred * 8)));
           const speed = Math.max(10, Math.round(50 - (density * 0.4)));
           const volume = Math.round(density * 12);
           const travelTime = parseFloat((0.8 * 60 / speed + avgDelayPred / 60).toFixed(1));
-
-          newStatuses[key] = { status, density, speed, volume, travelTime, queueLength: avgQueuePred };
+          outMetrics = { status, density, speed, volume, travelTime, queueLength: avgQueuePred };
         } else {
-          const seedVal = Math.sin(playbackIndex / 3 + key.charCodeAt(0));
+          const seedVal = Math.sin(playbackIndex / 3 + lOut.charCodeAt(0));
           const density = Math.round(45 + seedVal * 20);
-          const status = density >= 70 ? 'critical' :
-                         density >= 55 ? 'heavy' :
-                         density >= 35 ? 'moderate' : 'free';
+          const status = density >= 70 ? 'critical' : density >= 55 ? 'heavy' : density >= 35 ? 'moderate' : 'free';
           const speed = Math.round(45 - seedVal * 12);
           const volume = Math.round(180 + seedVal * 40);
           const travelTime = parseFloat((0.8 * 60 / speed + (status === 'critical' ? 2 : 1)).toFixed(1));
-          
-          newStatuses[key] = { status, density, speed, volume, travelTime };
+          outMetrics = { status, density, speed, volume, travelTime };
         }
-      } else {
-        if (records.length > 0) {
-          // Calculate status for each direction/link separately to catch directional bottlenecks
-          const linkDetails = records.map(r => {
-            const dens = Math.max(5, Math.min(100, Math.round(
-              isCoordsActive ? r.occupancy : (r.occupancy * 100)
-            )));
-            const stat: 'free' | 'moderate' | 'heavy' | 'critical' = 
-              dens >= 70 ? 'critical' :
-              dens >= 55 ? 'heavy' :
-              dens >= 35 ? 'moderate' : 'free';
-            return { stat, dens, r };
-          });
 
-          // Determine corridor worst severity level
-          const statusOrder = { free: 0, moderate: 1, heavy: 2, critical: 3 } as const;
-          let worstLink = linkDetails[0];
-          for (const ld of linkDetails) {
-            if (statusOrder[ld.stat] > statusOrder[worstLink.stat]) {
-              worstLink = ld;
-            }
+        // Compute lIn prediction metrics
+        const inPredRecords = gcsPredictions.filter(p => p.link === lIn);
+        let inMetrics;
+        if (inPredRecords.length > 0) {
+          let targetRecords = inPredRecords.filter(p => p.predictionHorizonSec === bucketStartSec);
+          if (targetRecords.length === 0) {
+            const maxHorizon = Math.max(...inPredRecords.map(p => p.predictionHorizonSec));
+            targetRecords = inPredRecords.filter(p => p.predictionHorizonSec === maxHorizon);
           }
+          const avgQueuePred = targetRecords.reduce((sum, p) => sum + p.queuePred, 0) / (targetRecords.length || 1);
+          const avgDelayPred = targetRecords.reduce((sum, p) => sum + p.delayPred, 0) / (targetRecords.length || 1);
+          const severityLevels = targetRecords.map(p => p.severityLevel);
+          let severity: 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL' = 'LOW';
+          if (severityLevels.includes('CRITICAL')) severity = 'CRITICAL';
+          else if (severityLevels.includes('HIGH')) severity = 'HIGH';
+          else if (severityLevels.includes('MODERATE')) severity = 'MODERATE';
+          const statusMap = { LOW: 'free', MODERATE: 'moderate', HIGH: 'heavy', CRITICAL: 'critical' } as const;
+          const status = statusMap[severity];
+          const density = Math.min(100, Math.max(5, Math.round(avgQueuePred * 8)));
+          const speed = Math.max(10, Math.round(50 - (density * 0.4)));
+          const volume = Math.round(density * 12);
+          const travelTime = parseFloat((0.8 * 60 / speed + avgDelayPred / 60).toFixed(1));
+          inMetrics = { status, density, speed, volume, travelTime, queueLength: avgQueuePred };
+        } else {
+          const seedVal = Math.sin(playbackIndex / 3 + lIn.charCodeAt(0));
+          const density = Math.round(45 + seedVal * 20);
+          const status = density >= 70 ? 'critical' : density >= 55 ? 'heavy' : density >= 35 ? 'moderate' : 'free';
+          const speed = Math.round(45 - seedVal * 12);
+          const volume = Math.round(180 + seedVal * 40);
+          const travelTime = parseFloat((0.8 * 60 / speed + (status === 'critical' ? 2 : 1)).toFixed(1));
+          inMetrics = { status, density, speed, volume, travelTime };
+        }
 
-          const avgSpeed = Math.round(records.reduce((sum, r) => sum + r.speed, 0) / records.length);
-          const totalVolume = records.reduce((sum, r) => sum + r.volume, 0);
-          const avgQueueLength = records.reduce((sum, r) => sum + r.queueLength, 0) / records.length;
-          const avgTravelTime = records.reduce((sum, r) => sum + r.travelTime, 0) / records.length;
+        const statusOrder = { free: 0, moderate: 1, heavy: 2, critical: 3 } as const;
+        type LinkStatus = 'free' | 'moderate' | 'heavy' | 'critical';
+        const sOut = outMetrics.status as LinkStatus;
+        const sIn = inMetrics.status as LinkStatus;
+        const worstStatus = statusOrder[sOut] > statusOrder[sIn] ? sOut : sIn;
 
-          newStatuses[key] = {
-            status: worstLink.stat,
-            density: Math.round(linkDetails.reduce((sum, ld) => sum + ld.dens, 0) / linkDetails.length),
-            speed: avgSpeed || 35,
-            volume: totalVolume || 150,
-            travelTime: parseFloat(avgTravelTime.toFixed(1)) || 1.2,
-            queueLength: avgQueueLength
+        newStatuses[key] = {
+          status: worstStatus,
+          density: Math.round((outMetrics.density + inMetrics.density) / 2),
+          speed: Math.round((outMetrics.speed + inMetrics.speed) / 2),
+          volume: outMetrics.volume + inMetrics.volume,
+          travelTime: parseFloat(((outMetrics.travelTime + inMetrics.travelTime) / 2).toFixed(1)),
+          queueLength: (outMetrics.queueLength || 0) + (inMetrics.queueLength || 0),
+          links: [
+            { id: lOut, direction: `${aName} ➔ ${bName}`, ...outMetrics, status: outMetrics.status as LinkStatus },
+            { id: lIn, direction: `${bName} ➔ ${aName}`, ...inMetrics, status: inMetrics.status as LinkStatus }
+          ]
+        };
+      } else {
+        // Telemetry Data Ingestion
+        const outRecord = records.find(r => r.linkId === lOut);
+        let outMetrics;
+        if (outRecord) {
+          const dens = Math.max(5, Math.min(100, Math.round(
+            isCoordsActive ? outRecord.occupancy : (outRecord.occupancy * 100)
+          )));
+          const status = dens >= 70 ? 'critical' : dens >= 55 ? 'heavy' : dens >= 35 ? 'moderate' : 'free';
+          outMetrics = {
+            status,
+            density: dens,
+            speed: Math.round(outRecord.speed) || 35,
+            volume: Math.round(outRecord.volume) || 150,
+            travelTime: parseFloat(outRecord.travelTime.toFixed(1)) || 1.2,
+            queueLength: outRecord.queueLength || 0
           };
         } else {
-          const seedVal = Math.sin(playbackIndex / 4 + key.charCodeAt(0));
+          const seedVal = Math.sin(playbackIndex / 4 + lOut.charCodeAt(0));
           const density = Math.round(25 + seedVal * 10);
-          const status = density >= 70 ? 'critical' :
-                         density >= 55 ? 'heavy' :
-                         density >= 35 ? 'moderate' : 'free';
+          const status = density >= 70 ? 'critical' : density >= 55 ? 'heavy' : density >= 35 ? 'moderate' : 'free';
           const speed = Math.round(45 - seedVal * 8);
           const volume = Math.round(100 + seedVal * 30);
           const travelTime = parseFloat((0.6 * 60 / speed).toFixed(1));
-
-          newStatuses[key] = { status, density, speed, volume, travelTime };
+          outMetrics = { status, density, speed, volume, travelTime };
         }
+
+        const inRecord = records.find(r => r.linkId === lIn);
+        let inMetrics;
+        if (inRecord) {
+          const dens = Math.max(5, Math.min(100, Math.round(
+            isCoordsActive ? inRecord.occupancy : (inRecord.occupancy * 100)
+          )));
+          const status = dens >= 70 ? 'critical' : dens >= 55 ? 'heavy' : dens >= 35 ? 'moderate' : 'free';
+          inMetrics = {
+            status,
+            density: dens,
+            speed: Math.round(inRecord.speed) || 35,
+            volume: Math.round(inRecord.volume) || 150,
+            travelTime: parseFloat(inRecord.travelTime.toFixed(1)) || 1.2,
+            queueLength: inRecord.queueLength || 0
+          };
+        } else {
+          const seedVal = Math.sin(playbackIndex / 4 + lIn.charCodeAt(0));
+          const density = Math.round(25 + seedVal * 10);
+          const status = density >= 70 ? 'critical' : density >= 55 ? 'heavy' : density >= 35 ? 'moderate' : 'free';
+          const speed = Math.round(45 - seedVal * 8);
+          const volume = Math.round(100 + seedVal * 30);
+          const travelTime = parseFloat((0.6 * 60 / speed).toFixed(1));
+          inMetrics = { status, density, speed, volume, travelTime };
+        }
+
+        const statusOrder = { free: 0, moderate: 1, heavy: 2, critical: 3 } as const;
+        type LinkStatus = 'free' | 'moderate' | 'heavy' | 'critical';
+        const sOut = outMetrics.status as LinkStatus;
+        const sIn = inMetrics.status as LinkStatus;
+        const worstStatus = statusOrder[sOut] > statusOrder[sIn] ? sOut : sIn;
+
+        newStatuses[key] = {
+          status: worstStatus,
+          density: Math.round((outMetrics.density + inMetrics.density) / 2),
+          speed: Math.round((outMetrics.speed + inMetrics.speed) / 2),
+          volume: outMetrics.volume + inMetrics.volume,
+          travelTime: parseFloat(((outMetrics.travelTime + inMetrics.travelTime) / 2).toFixed(1)),
+          queueLength: (outMetrics.queueLength || 0) + (inMetrics.queueLength || 0),
+          links: [
+            { id: lOut, direction: `${aName} ➔ ${bName}`, ...outMetrics, status: outMetrics.status as LinkStatus },
+            { id: lIn, direction: `${bName} ➔ ${aName}`, ...inMetrics, status: inMetrics.status as LinkStatus }
+          ]
+        };
       }
     });
 

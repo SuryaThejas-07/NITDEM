@@ -26,6 +26,16 @@ interface CommandMapProps {
     volume: number;
     travelTime: number;
     queueLength?: number;
+    links?: Array<{
+      id: string;
+      direction: string;
+      status: 'free' | 'moderate' | 'heavy' | 'critical';
+      density: number;
+      speed: number;
+      volume: number;
+      travelTime: number;
+      queueLength?: number;
+    }>;
   }>;
   incidents: Incident[];
   events: PlannedEvent[];
@@ -90,9 +100,55 @@ function getConnectionTooltipContent(
   a: TrafficNode,
   b: TrafficNode,
   predictionWindow: PredictionWindow,
-  linkStats?: { status: string; density: number; speed: number; volume: number; travelTime: number; queueLength?: number }
+  linkStats?: {
+    status: string;
+    density: number;
+    speed: number;
+    volume: number;
+    travelTime: number;
+    queueLength?: number;
+    links?: Array<{
+      id: string;
+      direction: string;
+      status: string;
+      density: number;
+      speed: number;
+      volume: number;
+      travelTime: number;
+      queueLength?: number;
+    }>;
+  }
 ) {
   const label = predictionWindow === 'current' ? 'CURRENT ANALYSIS' : PREDICTION_WINDOW_LABELS[predictionWindow].toUpperCase();
+
+  if (linkStats?.links && linkStats.links.length >= 2) {
+    const [l1, l2] = linkStats.links;
+    return `
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.4; background: #151820; border: 1px solid rgba(249,115,22,0.35); border-radius: 8px; padding: 10px 12px; color: white; min-width: 250px; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
+        <div style="color: #F97316; font-weight: 700; margin-bottom: 4px; font-size: 13.5px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 4px;">${a.name} ↔ ${b.name}</div>
+        <div style="color:#9CA3AF; font-size:10px; letter-spacing:0.05em; margin-bottom:8px; font-weight: bold; text-transform: uppercase;">${label}</div>
+        
+        <div style="margin-bottom: 10px; border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 10px;">
+          <div style="color: #60A5FA; font-weight: bold; margin-bottom: 4px; font-size: 11px;">➔ ${l1.direction} (ID: ${l1.id})</div>
+          <div style="color: #E5E7EB; font-size: 11px; margin-bottom: 2px;">Link status: <span style="color: ${STATUS_COLORS[l1.status]}; font-weight: bold;">${statusLabel(l1.status)}</span></div>
+          <div style="color: #E5E7EB; font-size: 11px; margin-bottom: 2px;">Density: <span style="font-weight: bold; color: ${STATUS_COLORS[l1.status]};">${l1.density}%</span></div>
+          <div style="color: #E5E7EB; font-size: 11px; margin-bottom: 2px;">Speed: <span style="font-weight: bold;">${l1.speed} km/h</span> | Volume: <span style="font-weight: bold;">${l1.volume} veh</span></div>
+          <div style="color: #E5E7EB; font-size: 11px; margin-bottom: 2px;">Est. Travel Time: <span style="font-weight: bold; color: #F59E0B;">${l1.travelTime} mins</span></div>
+          ${l1.queueLength !== undefined && l1.queueLength > 0 ? `<div style="color: #E5E7EB; font-size: 11px;">Queue Length: <span style="font-weight: bold; color: #EF4444;">${l1.queueLength.toFixed(1)} m</span></div>` : ''}
+        </div>
+
+        <div>
+          <div style="color: #60A5FA; font-weight: bold; margin-bottom: 4px; font-size: 11px;">➔ ${l2.direction} (ID: ${l2.id})</div>
+          <div style="color: #E5E7EB; font-size: 11px; margin-bottom: 2px;">Link status: <span style="color: ${STATUS_COLORS[l2.status]}; font-weight: bold;">${statusLabel(l2.status)}</span></div>
+          <div style="color: #E5E7EB; font-size: 11px; margin-bottom: 2px;">Density: <span style="font-weight: bold; color: ${STATUS_COLORS[l2.status]};">${l2.density}%</span></div>
+          <div style="color: #E5E7EB; font-size: 11px; margin-bottom: 2px;">Speed: <span style="font-weight: bold;">${l2.speed} km/h</span> | Volume: <span style="font-weight: bold;">${l2.volume} veh</span></div>
+          <div style="color: #E5E7EB; font-size: 11px; margin-bottom: 2px;">Est. Travel Time: <span style="font-weight: bold; color: #F59E0B;">${l2.travelTime} mins</span></div>
+          ${l2.queueLength !== undefined && l2.queueLength > 0 ? `<div style="color: #E5E7EB; font-size: 11px;">Queue Length: <span style="font-weight: bold; color: #EF4444;">${l2.queueLength.toFixed(1)} m</span></div>` : ''}
+        </div>
+      </div>
+    `;
+  }
+
   const status = linkStats?.status || 'free';
   const density = linkStats?.density ?? 0;
   const speed = linkStats?.speed ?? 45;
